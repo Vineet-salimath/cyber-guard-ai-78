@@ -34,15 +34,15 @@ const Dashboard = () => {
 
   return (
     <DashboardLayout>
-      <div className="p-6 space-y-6">
+      <div className="p-6 lg:p-8 space-y-8 max-w-7xl mx-auto">
         {/* Header */}
         <div className="space-y-2">
-          <h1 className="text-4xl font-orbitron font-bold">Threat Intelligence Dashboard</h1>
-          <p className="text-muted-foreground">Real-time monitoring and analytics</p>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground">Real-time threat monitoring and analytics</p>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Total Scans"
             value="1,000"
@@ -58,7 +58,7 @@ const Dashboard = () => {
             variant="danger"
           />
           <StatCard
-            title="Detection Accuracy"
+            title="Detection Rate"
             value="99.8%"
             icon={Shield}
             trend="+0.2% improved"
@@ -79,10 +79,10 @@ const Dashboard = () => {
         {/* Scan Table */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-orbitron font-bold">Recent Scans</h2>
+            <h2 className="text-xl font-semibold">Recent Scans</h2>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              Live Feed
+              <span>Live</span>
             </div>
           </div>
           <ScanTable scans={mockScans} onViewDetails={setSelectedScan} />
@@ -91,92 +91,69 @@ const Dashboard = () => {
 
       {/* Details Modal */}
       <Dialog open={!!selectedScan} onOpenChange={() => setSelectedScan(null)}>
-        <DialogContent className="max-w-2xl border-primary/20">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="font-orbitron text-2xl">Threat Report</DialogTitle>
+            <DialogTitle className="text-2xl">Threat Report</DialogTitle>
             <DialogDescription>Detailed analysis of the scanned website</DialogDescription>
           </DialogHeader>
           {selectedScan && (
             <div className="space-y-6">
-              {/* Status Badge */}
+              {/* Status */}
               <div className="flex items-center gap-4">
                 <Badge
                   variant="outline"
                   className={
                     selectedScan.status === "safe"
-                      ? "bg-success/20 text-success border-success/30"
+                      ? "bg-success/10 text-success border-success/20"
                       : selectedScan.status === "suspicious"
-                      ? "bg-warning/20 text-warning border-warning/30"
-                      : "bg-destructive/20 text-destructive border-destructive/30"
+                      ? "bg-warning/10 text-warning border-warning/20"
+                      : "bg-destructive/10 text-destructive border-destructive/20"
                   }
                 >
                   {selectedScan.status.toUpperCase()}
                 </Badge>
-                <span className="text-2xl font-orbitron font-bold">{selectedScan.threatScore}% Threat Score</span>
+                <span className="text-2xl font-bold">{selectedScan.threatScore}%</span>
               </div>
 
               {/* URL */}
               <div className="space-y-2">
-                <h3 className="font-semibold text-muted-foreground">Website URL</h3>
-                <p className="font-mono text-sm bg-secondary p-3 rounded border border-primary/20 break-all">
+                <h3 className="font-semibold text-sm text-muted-foreground">Website URL</h3>
+                <p className="font-mono text-sm bg-secondary p-3 rounded-lg break-all border">
                   {selectedScan.url}
                 </p>
               </div>
 
-              {/* Scan Details */}
+              {/* Details Grid */}
               <div className="grid md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-muted-foreground">Scan Time</h3>
-                  <p>{selectedScan.timestamp}</p>
+                  <h3 className="font-semibold text-sm text-muted-foreground">Scan Time</h3>
+                  <p className="text-sm">{selectedScan.timestamp}</p>
                 </div>
                 <div className="space-y-2">
-                  <h3 className="font-semibold text-muted-foreground">AI Model</h3>
-                  <p>MalwareSnipper v2.3.1</p>
+                  <h3 className="font-semibold text-sm text-muted-foreground">AI Model</h3>
+                  <p className="text-sm">MalwareSnipper v2.3.1</p>
                 </div>
               </div>
 
               {/* Risk Summary */}
               <div className="space-y-2">
-                <h3 className="font-semibold text-muted-foreground">Risk Summary</h3>
-                <div className="p-4 rounded bg-secondary border border-primary/20">
+                <h3 className="font-semibold text-sm text-muted-foreground">Risk Summary</h3>
+                <div className="p-4 rounded-lg bg-secondary border text-sm leading-relaxed">
                   {selectedScan.status === "safe" && (
                     <p>This website passed all security checks. No malicious content or suspicious patterns detected.</p>
                   )}
                   {selectedScan.status === "suspicious" && (
                     <p>
-                      This website exhibits suspicious behavior. Proceed with caution. Potential indicators: unusual
-                      scripts, redirects, or obfuscated code detected.
+                      This website exhibits suspicious behavior. Proceed with caution. Potential indicators include unusual
+                      scripts, redirects, or obfuscated code.
                     </p>
                   )}
                   {selectedScan.status === "malicious" && (
-                    <p className="text-destructive font-semibold">
-                      ⚠️ DANGER: This website has been identified as malicious. It contains confirmed malware,
-                      phishing attempts, or other harmful content. Do not proceed or enter any personal information.
+                    <p className="text-destructive font-medium">
+                      ⚠️ DANGER: This website contains confirmed malware or phishing content. Do not proceed or enter any personal information.
                     </p>
                   )}
                 </div>
-              </div>
-
-              {/* Recommended Actions */}
-              <div className="space-y-2">
-                <h3 className="font-semibold text-muted-foreground">Recommended Actions</h3>
-                <ul className="list-disc list-inside space-y-1 text-sm">
-                  {selectedScan.status === "safe" && <li>Continue browsing safely</li>}
-                  {selectedScan.status === "suspicious" && (
-                    <>
-                      <li>Avoid entering personal information</li>
-                      <li>Do not download files from this site</li>
-                      <li>Report if you believe this is a false positive</li>
-                    </>
-                  )}
-                  {selectedScan.status === "malicious" && (
-                    <>
-                      <li className="text-destructive font-semibold">Immediately close this website</li>
-                      <li className="text-destructive font-semibold">Run a full system antivirus scan</li>
-                      <li>Report this threat to your IT administrator</li>
-                    </>
-                  )}
-                </ul>
               </div>
             </div>
           )}

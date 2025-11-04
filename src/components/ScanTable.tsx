@@ -39,36 +39,36 @@ const ScanTable = ({ scans, onViewDetails }: ScanTableProps) => {
 
   const getStatusBadge = (status: string) => {
     const variants = {
-      safe: "bg-success/20 text-success border-success/30",
-      suspicious: "bg-warning/20 text-warning border-warning/30",
-      malicious: "bg-destructive/20 text-destructive border-destructive/30",
+      safe: "bg-success/10 text-success border-success/20 hover:bg-success/20",
+      suspicious: "bg-warning/10 text-warning border-warning/20 hover:bg-warning/20",
+      malicious: "bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20",
     };
 
     return (
-      <Badge variant="outline" className={variants[status as keyof typeof variants]}>
-        {status.toUpperCase()}
+      <Badge variant="outline" className={`${variants[status as keyof typeof variants]} font-medium`}>
+        {status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
   };
 
   return (
-    <div className="rounded-lg border border-primary/20 bg-card overflow-hidden">
+    <div className="rounded-xl border bg-card overflow-hidden">
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
-            <TableRow className="hover:bg-transparent border-primary/20">
-              <TableHead className="text-muted-foreground">Status</TableHead>
-              <TableHead className="text-muted-foreground">URL</TableHead>
-              <TableHead className="text-muted-foreground">Threat Score</TableHead>
-              <TableHead className="text-muted-foreground">Timestamp</TableHead>
-              <TableHead className="text-muted-foreground">Actions</TableHead>
+            <TableRow className="hover:bg-transparent border-b">
+              <TableHead className="font-medium">Status</TableHead>
+              <TableHead className="font-medium">URL</TableHead>
+              <TableHead className="font-medium">Threat Score</TableHead>
+              <TableHead className="font-medium">Timestamp</TableHead>
+              <TableHead className="font-medium">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {scans.map((scan) => (
               <TableRow
                 key={scan.id}
-                className="hover:bg-primary/5 border-primary/10 transition-colors"
+                className="hover:bg-muted/50 transition-colors"
               >
                 <TableCell>
                   <div className="flex items-center gap-2">
@@ -81,7 +81,7 @@ const ScanTable = ({ scans, onViewDetails }: ScanTableProps) => {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
-                    <div className="w-16 h-2 bg-secondary rounded-full overflow-hidden">
+                    <div className="w-20 h-2 bg-secondary rounded-full overflow-hidden">
                       <div
                         className={`h-full transition-all ${
                           scan.threatScore > 70
@@ -93,7 +93,7 @@ const ScanTable = ({ scans, onViewDetails }: ScanTableProps) => {
                         style={{ width: `${scan.threatScore}%` }}
                       />
                     </div>
-                    <span className="text-sm font-mono">{scan.threatScore}%</span>
+                    <span className="text-sm font-mono tabular-nums">{scan.threatScore}%</span>
                   </div>
                 </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
@@ -104,9 +104,9 @@ const ScanTable = ({ scans, onViewDetails }: ScanTableProps) => {
                     variant="ghost"
                     size="sm"
                     onClick={() => onViewDetails(scan)}
-                    className="gap-1"
+                    className="gap-1 h-8"
                   >
-                    Details
+                    <span className="text-xs">Details</span>
                     <ExternalLink className="w-3 h-3" />
                   </Button>
                 </TableCell>

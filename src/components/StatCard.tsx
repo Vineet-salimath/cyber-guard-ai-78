@@ -11,31 +11,33 @@ interface StatCardProps {
 
 const StatCard = ({ title, value, icon: Icon, trend, variant = "default" }: StatCardProps) => {
   const variantStyles = {
-    default: "border-primary/30 hover:border-primary/50 hover:shadow-[0_0_20px_hsl(180_100%_50%_/_0.2)]",
-    success: "border-success/30 hover:border-success/50 hover:shadow-[0_0_20px_hsl(150_100%_45%_/_0.2)]",
-    warning: "border-warning/30 hover:border-warning/50 hover:shadow-[0_0_20px_hsl(45_100%_60%_/_0.2)]",
-    danger: "border-destructive/30 hover:border-destructive/50 hover:shadow-[0_0_20px_hsl(0_100%_60%_/_0.2)]",
+    default: "",
+    success: "border-success/20",
+    warning: "border-warning/20",
+    danger: "border-destructive/20",
   };
 
   const iconColors = {
-    default: "text-primary",
-    success: "text-success",
-    warning: "text-warning",
-    danger: "text-destructive",
+    default: "text-primary bg-primary/10",
+    success: "text-success bg-success/10",
+    warning: "text-warning bg-warning/10",
+    danger: "text-destructive bg-destructive/10",
   };
 
   return (
     <motion.div
-      whileHover={{ scale: 1.02 }}
-      className={`p-6 rounded-lg bg-card border transition-all duration-300 ${variantStyles[variant]}`}
+      whileHover={{ y: -2 }}
+      className={`p-6 rounded-xl bg-card border transition-all duration-200 hover:shadow-md ${variantStyles[variant]}`}
     >
       <div className="flex items-start justify-between">
         <div className="space-y-2">
-          <p className="text-sm text-muted-foreground">{title}</p>
-          <p className="text-3xl font-orbitron font-bold">{value}</p>
+          <p className="text-sm font-medium text-muted-foreground">{title}</p>
+          <p className="text-3xl font-bold tracking-tight">{value}</p>
           {trend && <p className="text-xs text-muted-foreground">{trend}</p>}
         </div>
-        <Icon className={`w-10 h-10 ${iconColors[variant]}`} />
+        <div className={`p-2.5 rounded-lg ${iconColors[variant]}`}>
+          <Icon className="w-5 h-5" />
+        </div>
       </div>
     </motion.div>
   );

@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { LayoutDashboard, Activity, MessageSquare, Settings as SettingsIcon, Shield } from "lucide-react";
+import { LayoutDashboard, Shield, MessageSquare, Settings as SettingsIcon, Activity } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   Sidebar,
@@ -20,7 +20,7 @@ interface DashboardLayoutProps {
 
 const navigation = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Extension Demo", url: "/extension", icon: Shield },
+  { title: "Extension", url: "/extension", icon: Shield },
   { title: "Feedback", url: "/feedback", icon: MessageSquare },
   { title: "Settings", url: "/settings", icon: SettingsIcon },
 ];
@@ -28,20 +28,20 @@ const navigation = [
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <Sidebar className="border-r border-primary/20">
+      <div className="min-h-screen flex w-full bg-background">
+        <Sidebar className="border-r">
           <SidebarContent>
             {/* Header */}
-            <div className="p-6 border-b border-primary/20">
-              <div className="flex items-center gap-2">
-                <Shield className="w-8 h-8 text-primary" />
-                <span className="font-orbitron font-bold text-xl text-gradient">MalwareSnipper</span>
+            <div className="p-6 border-b">
+              <div className="flex items-center gap-2 font-semibold text-lg">
+                <Shield className="w-6 h-6 text-primary" />
+                <span>MalwareSnipper</span>
               </div>
             </div>
 
             {/* Navigation */}
             <SidebarGroup>
-              <SidebarGroupLabel className="text-xs text-muted-foreground uppercase tracking-wider">
+              <SidebarGroupLabel className="text-xs uppercase tracking-wider text-muted-foreground px-3">
                 Navigation
               </SidebarGroupLabel>
               <SidebarGroupContent>
@@ -52,15 +52,15 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                         <NavLink
                           to={item.url}
                           className={({ isActive }) =>
-                            `flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+                            `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
                               isActive
-                                ? "bg-primary/20 text-primary border-l-2 border-primary"
-                                : "hover:bg-primary/10 text-foreground/80"
+                                ? "bg-primary/10 text-primary font-medium"
+                                : "text-muted-foreground hover:bg-accent hover:text-foreground"
                             }`
                           }
                         >
                           <item.icon className="w-5 h-5" />
-                          <span>{item.title}</span>
+                          <span className="text-sm">{item.title}</span>
                         </NavLink>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -69,15 +69,13 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               </SidebarGroupContent>
             </SidebarGroup>
 
-            {/* Footer Info */}
-            <div className="mt-auto p-4 border-t border-primary/20">
-              <div className="text-xs text-muted-foreground space-y-1">
-                <div className="flex items-center gap-2">
-                  <Activity className="w-3 h-3 text-success" />
-                  <span>System Active</span>
-                </div>
-                <div>AI Model: v2.3.1</div>
+            {/* Status */}
+            <div className="mt-auto p-4 border-t">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Activity className="w-3 h-3 text-success" />
+                <span>System Active</span>
               </div>
+              <div className="text-xs text-muted-foreground mt-1">v2.3.1</div>
             </div>
           </SidebarContent>
         </Sidebar>
@@ -85,18 +83,13 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
         {/* Main Content */}
         <div className="flex-1 flex flex-col">
           {/* Header */}
-          <header className="h-16 border-b border-primary/20 flex items-center px-6 gap-4 bg-card/50 backdrop-blur">
+          <header className="h-16 border-b flex items-center px-6 gap-4 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <SidebarTrigger />
             <div className="flex-1" />
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-muted-foreground">
-                Powered by MalwareSnipper AI
-              </div>
-            </div>
           </header>
 
           {/* Page Content */}
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-auto bg-secondary/30">
             {children}
           </main>
         </div>

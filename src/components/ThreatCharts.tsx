@@ -2,9 +2,9 @@ import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tool
 
 const ThreatCharts = () => {
   const scanDistributionData = [
-    { name: "Safe", value: 842, color: "hsl(150 100% 45%)" },
-    { name: "Suspicious", value: 124, color: "hsl(45 100% 60%)" },
-    { name: "Malicious", value: 34, color: "hsl(0 100% 60%)" },
+    { name: "Safe", value: 842, color: "hsl(142 76% 36%)" },
+    { name: "Suspicious", value: 124, color: "hsl(38 92% 50%)" },
+    { name: "Malicious", value: 34, color: "hsl(0 84% 60%)" },
   ];
 
   const threatTrendData = [
@@ -28,9 +28,9 @@ const ThreatCharts = () => {
   return (
     <div className="grid lg:grid-cols-3 gap-6">
       {/* Scan Distribution Pie Chart */}
-      <div className="p-6 rounded-lg bg-card border border-primary/20">
-        <h3 className="text-lg font-orbitron font-bold mb-4">Scan Distribution</h3>
-        <ResponsiveContainer width="100%" height={250}>
+      <div className="p-6 rounded-xl bg-card border">
+        <h3 className="text-base font-semibold mb-6">Scan Distribution</h3>
+        <ResponsiveContainer width="100%" height={240}>
           <PieChart>
             <Pie
               data={scanDistributionData}
@@ -48,9 +48,10 @@ const ThreatCharts = () => {
             </Pie>
             <Tooltip
               contentStyle={{
-                backgroundColor: "hsl(220 35% 12%)",
-                border: "1px solid hsl(180 100% 50% / 0.3)",
+                backgroundColor: "hsl(var(--card))",
+                border: "1px solid hsl(var(--border))",
                 borderRadius: "8px",
+                fontSize: "14px",
               }}
             />
           </PieChart>
@@ -58,53 +59,55 @@ const ThreatCharts = () => {
       </div>
 
       {/* Threat Trend Line Chart */}
-      <div className="p-6 rounded-lg bg-card border border-primary/20">
-        <h3 className="text-lg font-orbitron font-bold mb-4">Weekly Threat Trend</h3>
-        <ResponsiveContainer width="100%" height={250}>
+      <div className="p-6 rounded-xl bg-card border">
+        <h3 className="text-base font-semibold mb-6">Weekly Threat Trend</h3>
+        <ResponsiveContainer width="100%" height={240}>
           <LineChart data={threatTrendData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(180 100% 50% / 0.1)" />
-            <XAxis dataKey="date" stroke="hsl(180 100% 95%)" />
-            <YAxis stroke="hsl(180 100% 95%)" />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+            <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
             <Tooltip
               contentStyle={{
-                backgroundColor: "hsl(220 35% 12%)",
-                border: "1px solid hsl(180 100% 50% / 0.3)",
+                backgroundColor: "hsl(var(--card))",
+                border: "1px solid hsl(var(--border))",
                 borderRadius: "8px",
+                fontSize: "14px",
               }}
             />
             <Line
               type="monotone"
               dataKey="threats"
-              stroke="hsl(0 100% 60%)"
+              stroke="hsl(var(--destructive))"
               strokeWidth={2}
-              dot={{ fill: "hsl(0 100% 60%)" }}
+              dot={{ fill: "hsl(var(--destructive))", r: 4 }}
             />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
       {/* Top Malicious Domains Bar Chart */}
-      <div className="p-6 rounded-lg bg-card border border-primary/20">
-        <h3 className="text-lg font-orbitron font-bold mb-4">Top Malicious Domains</h3>
-        <ResponsiveContainer width="100%" height={250}>
+      <div className="p-6 rounded-xl bg-card border">
+        <h3 className="text-base font-semibold mb-6">Top Malicious Domains</h3>
+        <ResponsiveContainer width="100%" height={240}>
           <BarChart data={topDomainsData} layout="vertical">
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(180 100% 50% / 0.1)" />
-            <XAxis type="number" stroke="hsl(180 100% 95%)" />
+            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+            <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
             <YAxis
               dataKey="domain"
               type="category"
               width={120}
-              stroke="hsl(180 100% 95%)"
-              tick={{ fontSize: 10 }}
+              stroke="hsl(var(--muted-foreground))"
+              tick={{ fontSize: 11 }}
             />
             <Tooltip
               contentStyle={{
-                backgroundColor: "hsl(220 35% 12%)",
-                border: "1px solid hsl(180 100% 50% / 0.3)",
+                backgroundColor: "hsl(var(--card))",
+                border: "1px solid hsl(var(--border))",
                 borderRadius: "8px",
+                fontSize: "14px",
               }}
             />
-            <Bar dataKey="count" fill="hsl(45 100% 60%)" radius={[0, 4, 4, 0]} />
+            <Bar dataKey="count" fill="hsl(var(--warning))" radius={[0, 4, 4, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>

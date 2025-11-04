@@ -5,19 +5,16 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_hsl(180_100%_50%_/_0.3)] hover:shadow-[0_0_25px_hsl(180_100%_50%_/_0.5)]",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-[0_0_15px_hsl(0_100%_60%_/_0.3)] hover:shadow-[0_0_25px_hsl(0_100%_60%_/_0.5)]",
-        outline: "border border-primary/30 bg-background/50 hover:bg-primary/10 hover:border-primary/50 text-foreground",
+        default: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm hover:shadow-md",
+        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-sm",
+        outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent/50 hover:text-accent-foreground",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
-        hero: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_20px_hsl(180_100%_50%_/_0.4)] hover:shadow-[0_0_35px_hsl(180_100%_50%_/_0.6)] font-orbitron tracking-wide",
-        success: "bg-success text-success-foreground hover:bg-success/90 shadow-[0_0_15px_hsl(150_100%_45%_/_0.3)] hover:shadow-[0_0_25px_hsl(150_100%_45%_/_0.5)]",
-        warning: "bg-warning text-warning-foreground hover:bg-warning/90 shadow-[0_0_15px_hsl(45_100%_60%_/_0.3)] hover:shadow-[0_0_25px_hsl(45_100%_60%_/_0.5)]",
       },
       size: {
         default: "h-10 px-4 py-2",

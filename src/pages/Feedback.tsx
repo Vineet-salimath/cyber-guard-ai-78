@@ -23,7 +23,6 @@ const Feedback = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate form submission
     toast.success("Feedback submitted successfully!", {
       description: "Thank you for helping us improve MalwareSnipper.",
     });
@@ -32,31 +31,31 @@ const Feedback = () => {
 
   return (
     <DashboardLayout>
-      <div className="p-6 max-w-4xl mx-auto space-y-8">
+      <div className="p-6 lg:p-8 max-w-4xl mx-auto space-y-8">
         {/* Header */}
         <div className="space-y-2">
           <div className="flex items-center gap-3">
-            <MessageSquare className="w-10 h-10 text-primary" />
-            <h1 className="text-4xl font-orbitron font-bold">Submit Feedback</h1>
+            <MessageSquare className="w-8 h-8 text-primary" />
+            <h1 className="text-3xl font-bold tracking-tight">Submit Feedback</h1>
           </div>
           <p className="text-muted-foreground">
-            Help us improve by reporting false positives or suggesting improvements
+            Help us improve by reporting issues or suggesting improvements
           </p>
         </div>
 
         {/* Feedback Form */}
-        <div className="p-8 rounded-lg bg-card border border-primary/20">
+        <div className="p-8 rounded-xl bg-card border">
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Feedback Type */}
             <div className="space-y-2">
-              <Label htmlFor="type" className="text-base">
+              <Label htmlFor="type" className="text-sm font-medium">
                 Feedback Type
               </Label>
               <Select
                 value={formData.type}
                 onValueChange={(value) => setFormData({ ...formData, type: value })}
               >
-                <SelectTrigger id="type" className="bg-background border-primary/30">
+                <SelectTrigger id="type" className="bg-background">
                   <SelectValue placeholder="Select feedback type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -71,8 +70,8 @@ const Feedback = () => {
 
             {/* Website URL */}
             <div className="space-y-2">
-              <Label htmlFor="url" className="text-base">
-                Website URL (if applicable)
+              <Label htmlFor="url" className="text-sm font-medium">
+                Website URL <span className="text-muted-foreground">(optional)</span>
               </Label>
               <Input
                 id="url"
@@ -80,7 +79,7 @@ const Feedback = () => {
                 placeholder="https://example.com"
                 value={formData.url}
                 onChange={(e) => setFormData({ ...formData, url: e.target.value })}
-                className="bg-background border-primary/30 font-mono"
+                className="bg-background font-mono text-sm"
               />
               <p className="text-xs text-muted-foreground">
                 Include the URL if your feedback is related to a specific scan
@@ -89,7 +88,7 @@ const Feedback = () => {
 
             {/* Message */}
             <div className="space-y-2">
-              <Label htmlFor="message" className="text-base">
+              <Label htmlFor="message" className="text-sm font-medium">
                 Your Message
               </Label>
               <Textarea
@@ -97,13 +96,13 @@ const Feedback = () => {
                 placeholder="Describe your feedback in detail..."
                 value={formData.message}
                 onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                className="bg-background border-primary/30 min-h-[150px] resize-none"
+                className="bg-background min-h-[150px] resize-none"
                 required
               />
             </div>
 
             {/* Submit Button */}
-            <Button type="submit" variant="default" size="lg" className="w-full gap-2">
+            <Button type="submit" size="lg" className="w-full gap-2">
               <Send className="w-4 h-4" />
               Submit Feedback
             </Button>
@@ -112,17 +111,17 @@ const Feedback = () => {
 
         {/* Info Cards */}
         <div className="grid md:grid-cols-2 gap-6">
-          <div className="p-6 rounded-lg bg-card border border-success/20">
-            <h3 className="font-orbitron font-bold text-lg mb-3 text-success">False Positive</h3>
-            <p className="text-sm text-muted-foreground">
+          <div className="p-6 rounded-xl bg-card border border-success/20">
+            <h3 className="font-semibold text-base mb-2 text-success">False Positive</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
               If a safe website was incorrectly flagged as malicious or suspicious, let us know so we can improve
               our detection accuracy.
             </p>
           </div>
 
-          <div className="p-6 rounded-lg bg-card border border-destructive/20">
-            <h3 className="font-orbitron font-bold text-lg mb-3 text-destructive">False Negative</h3>
-            <p className="text-sm text-muted-foreground">
+          <div className="p-6 rounded-xl bg-card border border-destructive/20">
+            <h3 className="font-semibold text-base mb-2 text-destructive">False Negative</h3>
+            <p className="text-sm text-muted-foreground leading-relaxed">
               Found a malicious website that wasn't detected? Report it to help protect other users and train our
               AI model.
             </p>
