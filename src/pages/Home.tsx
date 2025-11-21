@@ -2,6 +2,16 @@ import { motion } from "framer-motion";
 import { Shield, Zap, Lock, TrendingUp, ArrowRight, Check, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { MalwareSnipperLogo } from "@/components/ui/svg-logos";
+import { 
+  AnimatedGradientBackground, 
+  GlowCard, 
+  GradientText,
+  PulseDot,
+  GridPattern,
+  Spotlight,
+  FloatingParticles
+} from "@/components/ui/glowing-badge";
 
 const Home = () => {
   const navigate = useNavigate();

@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
-import { LayoutDashboard, Shield, MessageSquare, Settings as SettingsIcon, Activity } from "lucide-react";
+import { LayoutDashboard, Shield, MessageSquare, Settings as SettingsIcon, Activity, Newspaper } from "lucide-react";
 import { NavLink } from "react-router-dom";
+import { MalwareSnipperLogo } from "@/components/ui/svg-logos";
 import {
   Sidebar,
   SidebarContent,
@@ -20,7 +21,7 @@ interface DashboardLayoutProps {
 
 const navigation = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Extension", url: "/extension", icon: Shield },
+  { title: "Blogs", url: "/blogs", icon: Newspaper },
   { title: "Feedback", url: "/feedback", icon: MessageSquare },
   { title: "Settings", url: "/settings", icon: SettingsIcon },
 ];
@@ -33,10 +34,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           <SidebarContent>
             {/* Header */}
             <div className="p-6 border-b">
-              <div className="flex items-center gap-2 font-semibold text-lg">
-                <Shield className="w-6 h-6 text-primary" />
-                <span>MalwareSnipper</span>
-              </div>
+              <MalwareSnipperLogo variant="default" />
             </div>
 
             {/* Navigation */}

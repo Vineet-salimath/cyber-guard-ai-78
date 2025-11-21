@@ -1,0 +1,36 @@
+# Core Flask dependencies
+flask==3.0.0
+flask-cors==4.0.0
+flask-socketio==5.3.4
+requests==2.31.0
+python-dotenv==1.0.0
+
+# Multi-layer security analysis dependencies
+python-whois==0.8.0           # Domain age lookup
+dnspython==2.4.2               # DNS resolution
+pyOpenSSL==23.3.0              # SSL/TLS certificate analysis
+
+# Threat Intelligence API clients
+virustotal-python==1.0.0       # VirusTotal integration (optional)
+shodan==1.30.0                 # Shodan API (optional)
+
+# ML dependencies (existing)
+scikit-learn==1.3.2            # ML models
+pandas==2.1.3                  # Data processing
+numpy==1.26.2                  # Numerical operations
+
+# Future ML infrastructure (for Option C scaffold)
+# onnxruntime==1.16.3          # ONNX model inference (uncomment when ready)
+# tensorflow==2.15.0            # Deep learning (uncomment when training)
+# xgboost==2.0.2                # Gradient boosting (uncomment when ready)
+# esprima==4.0.1                # JavaScript AST parsing (uncomment when ready)
+# playwright==1.40.0            # Browser automation (uncomment when ready)
+
+# Background task processing (for future async workers)
+# redis==5.0.1                  # Redis client (uncomment when ready)
+# celery==5.3.4                 # Async task queue (uncomment when ready)
+# rq==1.15.1                    # Simple job queue (uncomment when ready)
+
+# Database (optional for caching)
+# psycopg2-binary==2.9.9       # PostgreSQL (uncomment when ready)
+# sqlalchemy==2.0.23            # ORM (uncomment when ready)

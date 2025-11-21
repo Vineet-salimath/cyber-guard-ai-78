@@ -1,5 +1,6 @@
 import { LucideIcon } from "lucide-react";
 import { motion } from "framer-motion";
+import { GlowCard } from "@/components/ui/glowing-badge";
 
 interface StatCardProps {
   title: string;
@@ -10,35 +11,45 @@ interface StatCardProps {
 }
 
 const StatCard = ({ title, value, icon: Icon, trend, variant = "default" }: StatCardProps) => {
-  const variantStyles = {
-    default: "",
-    success: "border-success/20",
-    warning: "border-warning/20",
-    danger: "border-destructive/20",
+  const glowColors: Record<string, "blue" | "green" | "yellow" | "red"> = {
+    default: "blue",
+    success: "green",
+    warning: "yellow",
+    danger: "red",
   };
 
   const iconColors = {
-    default: "text-primary bg-primary/10",
-    success: "text-success bg-success/10",
-    warning: "text-warning bg-warning/10",
-    danger: "text-destructive bg-destructive/10",
+    default: "text-blue-600 bg-blue-600/10",
+    success: "text-green-600 bg-green-600/10",
+    warning: "text-yellow-600 bg-yellow-600/10",
+    danger: "text-red-600 bg-red-600/10",
   };
 
   return (
     <motion.div
-      whileHover={{ y: -2 }}
-      className={`p-6 rounded-xl bg-card border transition-all duration-200 hover:shadow-md ${variantStyles[variant]}`}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -4, scale: 1.02 }}
+      transition={{ duration: 0.2 }}
     >
-      <div className="flex items-start justify-between">
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className="text-3xl font-bold tracking-tight">{value}</p>
-          {trend && <p className="text-xs text-muted-foreground">{trend}</p>}
+      <GlowCard glowColor={glowColors[variant]} className="h-full">
+        <div className="flex items-start justify-between">
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-muted-foreground">{title}</p>
+            <p className="text-3xl font-bold tracking-tight bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text">
+              {value}
+            </p>
+            {trend && <p className="text-xs text-muted-foreground">{trend}</p>}
+          </div>
+          <motion.div 
+            className={`p-2.5 rounded-lg ${iconColors[variant]}`}
+            whileHover={{ rotate: 5, scale: 1.1 }}
+            transition={{ type: "spring", stiffness: 300 }}
+          >
+            <Icon className="w-5 h-5" />
+          </motion.div>
         </div>
-        <div className={`p-2.5 rounded-lg ${iconColors[variant]}`}>
-          <Icon className="w-5 h-5" />
-        </div>
-      </div>
+      </GlowCard>
     </motion.div>
   );
 };

@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # Backend FastAPI/Flask server
+  backend:
+    build: .
+    container_name: malware-backend
+    ports:
+      - "5000:5000"
+    environment:
+      - VIRUSTOTAL_API_KEY=${VIRUSTOTAL_API_KEY}
+      - ABUSEIPDB_API_KEY=${ABUSEIPDB_API_KEY}
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./backend:/app
+      - ./models:/app/models
+    depends_on:
+      - redis
+    command: python app.py
+  
+  # Redis for caching and job queue
+  redis:
+    image: redis:7-alpine
+    container_name: malware-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+  
+  # Worker for async ML tasks (optional)
+  worker:
+    build: .
+    container_name: malware-worker
+    environment:
+      - REDIS_URL=redis://redis:6379
+    volumes:
+      - ./backend:/app
+      - ./models:/app/models
+    depends_on:
+      - redis
+    command: python workers/scan_worker.py
+  
+  # PostgreSQL (optional - for persistent storage)
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: malware-db
+  #   environment:
+  #     - POSTGRES_USER=malware
+  #     - POSTGRES_PASSWORD=secure_password
+  #     - POSTGRES_DB=malware_db
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  redis_data:
+  # postgres_data:

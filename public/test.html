@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Page - MalwareSnipper Extension Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+            margin-bottom: 30px;
+        }
+        .info-box {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .status {
+            display: inline-block;
+            padding: 8px 16px;
+            background: #10b981;
+            border-radius: 20px;
+            font-weight: bold;
+            margin: 10px 5px;
+        }
+        .links {
+            margin-top: 30px;
+        }
+        .links a {
+            display: inline-block;
+            margin: 10px;
+            padding: 12px 24px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+            transition: all 0.3s;
+        }
+        .links a:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        code {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🛡️ MalwareSnipper Test Page</h1>
+        <div class="subtitle">Extension is monitoring this page!</div>
+        
+        <div class="info-box">
+            <h2>✅ Test Status</h2>
+            <div class="status">Extension Active</div>
+            <div class="status">Page Loaded</div>
+            <div class="status">Safe Site</div>
+        </div>
+        
+        <div class="info-box">
+            <h2>📊 What's Happening</h2>
+            <p>When you visited this page:</p>
+            <ol>
+                <li>✅ Chrome extension captured the URL</li>
+                <li>✅ Extension sent URL to dashboard</li>
+                <li>✅ Dashboard forwarded to backend for analysis</li>
+                <li>✅ Backend ML model analyzed the URL</li>
+                <li>✅ Results sent back via WebSocket</li>
+                <li>✅ Dashboard updated in real-time</li>
+            </ol>
+        </div>
+        
+        <div class="info-box">
+            <h2>🔍 How to Verify</h2>
+            <p>Open your dashboard and check:</p>
+            <ul>
+                <li><strong>Scan Distribution:</strong> Should show this URL</li>
+                <li><strong>Live Threat Feed:</strong> Should list this page</li>
+                <li><strong>Total Scans:</strong> Counter should increment</li>
+                <li><strong>Risk Level:</strong> Should show <code>BENIGN</code> or <code>SAFE</code></li>
+            </ul>
+        </div>
+        
+        <div class="info-box">
+            <h2>🧪 Test More Sites</h2>
+            <p>Click these links to test the extension with different websites:</p>
+            <div class="links">
+                <a href="https://google.com" target="_blank">🔍 Google</a>
+                <a href="https://github.com" target="_blank">💻 GitHub</a>
+                <a href="https://stackoverflow.com" target="_blank">📚 Stack Overflow</a>
+                <a href="https://example.com" target="_blank">🌐 Example.com</a>
+            </div>
+            <p><small>Each link will trigger a new scan. Watch your dashboard update in real-time!</small></p>
+        </div>
+        
+        <div class="info-box">
+            <h2>📝 Current Page Info</h2>
+            <p><strong>URL:</strong> <code id="current-url"></code></p>
+            <p><strong>Timestamp:</strong> <code id="timestamp"></code></p>
+            <p><strong>Extension Should Scan:</strong> <span class="status">YES</span></p>
+        </div>
+    </div>
+    
+    <script>
+        // Display current page info
+        document.getElementById('current-url').textContent = window.location.href;
+        document.getElementById('timestamp').textContent = new Date().toISOString();
+        
+        // Log for debugging
+        console.log('🧪 [TEST PAGE] MalwareSnipper Extension Test Page Loaded');
+        console.log('   URL:', window.location.href);
+        console.log('   Time:', new Date().toISOString());
+        console.log('   Extension should capture this URL and send to dashboard');
+    </script>
+</body>
+</html>

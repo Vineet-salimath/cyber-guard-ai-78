@@ -1,0 +1,138 @@
+{
+  "total_scans": 15,
+  "benign_count": 15,
+  "suspicious_count": 0,
+  "malicious_count": 0,
+  "last_updated": "2025-11-21T17:52:08.896921",
+  "scan_history": [
+    {
+      "url": "http://localhost:8080/dashboard",
+      "risk": "benign",
+      "score": 10,
+      "ml_prediction": null,
+      "timestamp": "2025-11-19T22:55:15.561832"
+    },
+    {
+      "url": "http://localhost:8080/dashboard",
+      "risk": "benign",
+      "score": 10,
+      "ml_prediction": null,
+      "timestamp": "2025-11-19T23:07:21.125401"
+    },
+    {
+      "url": "https://www.linkedin.com/in/vineet-salimath-/",
+      "risk": "benign",
+      "score": 10,
+      "ml_prediction": null,
+      "timestamp": "2025-11-19T23:28:17.307759"
+    },
+    {
+      "url": "https://example.com/",
+      "risk": "benign",
+      "score": 10,
+      "ml_prediction": null,
+      "timestamp": "2025-11-19T23:30:09.715053"
+    },
+    {
+      "url": "http://localhost:8080/dashboard",
+      "risk": "benign",
+      "score": 10,
+      "ml_prediction": null,
+      "timestamp": "2025-11-20T10:18:19.975142"
+    },
+    {
+      "url": "http://localhost:8080/",
+      "risk": "benign",
+      "score": 10,
+      "ml_prediction": null,
+      "timestamp": "2025-11-20T10:33:51.917438"
+    },
+    {
+      "url": "https://keep.google.com/",
+      "risk": "benign",
+      "score": 10,
+      "ml_prediction": null,
+      "timestamp": "2025-11-20T11:10:53.543400"
+    },
+    {
+      "url": "https://www.netacad.com/dashboard",
+      "risk": "benign",
+      "score": 10,
+      "ml_prediction": null,
+      "timestamp": "2025-11-20T11:19:57.639952"
+    },
+    {
+      "url": "https://github.com/The-Art-of-Hacking/h4cker/tree/master/bug-bounties",
+      "risk": "benign",
+      "score": 10,
+      "ml_prediction": null,
+      "timestamp": "2025-11-20T11:30:53.810051"
+    },
+    {
+      "url": "https://www.netacad.com/dashboard",
+      "risk": "benign",
+      "score": 8.4,
+      "ml_prediction": null,
+      "timestamp": "2025-11-20T19:31:47.300524",
+      "scan_status": {
+        "static": true,
+        "owasp": true,
+        "ti": true,
+        "yara": true,
+        "ml": false,
+        "heuristics": true,
+        "reputation": true
+      },
+      "layers_executed": 6,
+      "final_classification": "BENIGN",
+      "overall_risk": 0.084
+    },
+    {
+      "url": "http://localhost:8080/",
+      "risk": "benign",
+      "score": 9.1,
+      "ml_prediction": null,
+      "timestamp": "2025-11-20T19:34:48.645807",
+      "scan_status": {
+        "static": true,
+        "owasp": true,
+        "ti": true,
+        "yara": true,
+        "ml": false,
+        "heuristics": true,
+        "reputation": true
+      },
+      "layers_executed": 6,
+      "final_classification": "BENIGN",
+      "overall_risk": 0.091
+    },
+    {
+      "url": "https://www.netacad.com/dashboard",
+      "risk": "benign",
+      "score": 10,
+      "ml_prediction": null,
+      "timestamp": "2025-11-21T16:27:56.019883"
+    },
+    {
+      "url": "https://www.google.com",
+      "risk": "benign",
+      "score": 10,
+      "ml_prediction": null,
+      "timestamp": "2025-11-21T16:58:08.555345"
+    },
+    {
+      "url": "https://example.com",
+      "risk": "benign",
+      "score": 10,
+      "ml_prediction": null,
+      "timestamp": "2025-11-21T17:12:14.733223"
+    },
+    {
+      "url": "https://www.linkedin.com/in/vineet-salimath-/",
+      "risk": "benign",
+      "score": 10,
+      "ml_prediction": null,
+      "timestamp": "2025-11-21T17:52:08.896906"
+    }
+  ]
+}

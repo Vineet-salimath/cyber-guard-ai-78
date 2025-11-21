@@ -1,0 +1,18 @@
+# Python Requirements for SIEM ML Integration
+# Install with: pip install -r requirements-siem.txt
+
+# WebSocket Support
+websockets==12.0
+
+# Already installed (from your existing system):
+# flask
+# flask-cors
+# requests
+# python-dotenv
+
+# Future ML enhancements (optional - for trained models):
+# scikit-learn==1.3.2
+# numpy==1.24.3
+# pandas==2.0.3
+# joblib==1.3.2
+# pefile==2023.2.7  # For PE file analysis

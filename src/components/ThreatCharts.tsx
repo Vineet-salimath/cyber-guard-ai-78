@@ -1,29 +1,79 @@
+import { useState, useEffect } from "react";
 import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 
 const ThreatCharts = () => {
-  const scanDistributionData = [
-    { name: "Safe", value: 842, color: "hsl(142 76% 36%)" },
-    { name: "Suspicious", value: 124, color: "hsl(38 92% 50%)" },
-    { name: "Malicious", value: 34, color: "hsl(0 84% 60%)" },
-  ];
+  const [scanDistributionData, setScanDistributionData] = useState([
+    { name: "Safe", value: 0, color: "hsl(142 76% 36%)" },
+    { name: "Suspicious", value: 0, color: "hsl(38 92% 50%)" },
+    { name: "Malicious", value: 0, color: "hsl(0 84% 60%)" },
+  ]);
 
-  const threatTrendData = [
-    { date: "Mon", threats: 12 },
-    { date: "Tue", threats: 8 },
-    { date: "Wed", threats: 15 },
-    { date: "Thu", threats: 6 },
-    { date: "Fri", threats: 11 },
-    { date: "Sat", threats: 9 },
-    { date: "Sun", threats: 7 },
-  ];
+  const [topDomainsData, setTopDomainsData] = useState([
+    { domain: "Loading...", count: 0 },
+  ]);
 
-  const topDomainsData = [
-    { domain: "malware-site.com", count: 8 },
-    { domain: "phishing-bank.net", count: 6 },
-    { domain: "fake-update.org", count: 5 },
-    { domain: "spam-ads.biz", count: 4 },
-    { domain: "suspicious.io", count: 3 },
-  ];
+  const [threatTrendData, setThreatTrendData] = useState([
+    { date: "Mon", threats: 0 },
+    { date: "Tue", threats: 0 },
+    { date: "Wed", threats: 0 },
+    { date: "Thu", threats: 0 },
+    { date: "Fri", threats: 0 },
+    { date: "Sat", threats: 0 },
+    { date: "Sun", threats: 0 },
+  ]);
+
+  useEffect(() => {
+    fetchChartData();
+    
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(fetchChartData, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchChartData = async () => {
+    try {
+      // Fetch threat statistics from backend
+      const response = await fetch('http://localhost:5000/api/threat-statistics');
+      const data = await response.json();
+
+      // Update scan distribution pie chart
+      setScanDistributionData([
+        { name: "Safe", value: data.severity_breakdown.SAFE || 0, color: "hsl(142 76% 36%)" },
+        { name: "Suspicious", value: data.severity_breakdown.MEDIUM || 0, color: "hsl(38 92% 50%)" },
+        { name: "Malicious", value: data.severity_breakdown.CRITICAL || 0, color: "hsl(0 84% 60%)" },
+      ]);
+
+      // Update top domains bar chart
+      if (data.top_domains && data.top_domains.length > 0) {
+        setTopDomainsData(
+          data.top_domains.slice(0, 5).map((item: any) => ({
+            domain: item.domain,
+            count: item.count
+          }))
+        );
+      }
+
+      console.log('✅ Chart data updated from backend API');
+
+      // Fetch weekly threat trend from backend
+      try {
+        const trendResponse = await fetch('http://localhost:5000/api/weekly-threat-trend');
+        const trendData = await trendResponse.json();
+        
+        if (Array.isArray(trendData) && trendData.length > 0) {
+          setThreatTrendData(trendData);
+          console.log('✅ Weekly threat trend updated from real-time analysis:', trendData);
+        } else {
+          console.log('⚠️  No weekly trend data available - using empty data');
+        }
+      } catch (trendError) {
+        console.error('❌ Error fetching weekly trend:', trendError);
+      }
+      
+    } catch (error) {
+      console.error('❌ Error fetching chart data:', error);
+    }
+  };
 
   return (
     <div className="grid lg:grid-cols-3 gap-6">
