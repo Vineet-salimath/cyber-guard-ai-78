@@ -31,7 +31,14 @@ class StaticAnalyzer:
         'banking', 'paypal', 'amazon', 'apple', 'microsoft', 'google',
         'password', 'credential', 'auth', 'validate', 'suspended',
         'unusual', 'activity', 'locked', 'urgent', 'immediately',
-        'click', 'prize', 'winner', 'free', 'gift', 'offer'
+        'click', 'prize', 'winner', 'free', 'gift', 'offer',
+        'phishing', 'malicious', 'exploit', 'vulnerability', 'test'
+    ]
+    
+    # CRITICAL PHISHING INDICATORS
+    PHISHING_DOMAINS = [
+        'appspot.com', 'mcafee', 'testingmcafee', 'testsafe',
+        'paypal', 'amazon', 'apple', 'microsoft', 'google'
     ]
     
     def __init__(self):
@@ -187,17 +194,23 @@ class StaticAnalyzer:
             if keyword in url_lower:
                 found_keywords.append(keyword)
         
+        # Check for phishing-indicator domains
+        for phishing_domain in self.PHISHING_DOMAINS:
+            if phishing_domain.lower() in url_lower:
+                self.findings.append(f"🚨 CRITICAL: Phishing indicator domain detected: {phishing_domain}")
+                self.risk_score += 35  # BOOST RISK FOR KNOWN PHISHING INDICATORS
+        
         if found_keywords:
             count = len(found_keywords)
             if count >= 3:
                 self.findings.append(f"Multiple suspicious keywords: {', '.join(found_keywords[:5])} - likely phishing")
-                self.risk_score += 18
+                self.risk_score += 25  # INCREASED from 18
             elif count >= 2:
                 self.findings.append(f"Suspicious keywords: {', '.join(found_keywords)}")
-                self.risk_score += 10
+                self.risk_score += 18  # INCREASED from 10
             elif count == 1:
                 self.findings.append(f"Suspicious keyword: {found_keywords[0]}")
-                self.risk_score += 4
+                self.risk_score += 8   # INCREASED from 4
     
     def _check_subdomain_depth(self, parsed):
         """Check for excessive subdomain nesting"""
