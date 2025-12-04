@@ -16,7 +16,8 @@ class StaticAnalyzer:
     # Suspicious TLDs commonly used in phishing
     SUSPICIOUS_TLDS = {
         '.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.work', 
-        '.click', '.link', '.download', '.zip', '.review'
+        '.click', '.link', '.download', '.zip', '.review', '.support',
+        '.info', '.online', '.services', '.tech', '.site', '.website'
     }
     
     # Homoglyph characters (look-alike characters used in phishing)
@@ -25,6 +26,15 @@ class StaticAnalyzer:
         '0': 'o', '1': 'l', '3': 'e', '5': 's', '7': 't'  # Numbers
     }
     
+    # CRITICAL PHISHING KEYWORDS (High-value indicators)
+    CRITICAL_PHISHING_KEYWORDS = [
+        'verify', 'confirm', 'validate', 'authenticate', 'authorize',
+        'reset-password', 'update-password', 'change-password',
+        'alert', 'warning', 'urgent', 'immediately', 'action-required',
+        'suspended', 'locked', 'disabled', 'unusual-activity',
+        'resolve', 'recover', 'secure', 'protection', 'security-check'
+    ]
+    
     # Suspicious keywords in URLs
     SUSPICIOUS_KEYWORDS = [
         'login', 'signin', 'account', 'verify', 'update', 'secure', 'confirm',
@@ -32,7 +42,9 @@ class StaticAnalyzer:
         'password', 'credential', 'auth', 'validate', 'suspended',
         'unusual', 'activity', 'locked', 'urgent', 'immediately',
         'click', 'prize', 'winner', 'free', 'gift', 'offer',
-        'phishing', 'malicious', 'exploit', 'vulnerability', 'test'
+        'phishing', 'malicious', 'exploit', 'vulnerability', 'test',
+        'alert', 'warning', 'check', 'session', 'reset', 'recover',
+        'help', 'support', 'recovery', 'protection', 'authentication'
     ]
     
     # CRITICAL PHISHING INDICATORS
@@ -73,6 +85,8 @@ class StaticAnalyzer:
             self._check_subdomain_depth(parsed)
             self._check_suspicious_patterns(url)
             self._check_url_shortener(parsed)
+            self._check_domain_impersonation(url)  # NEW CHECK
+            self._check_hyphenated_keywords(url)  # NEW CHECK for multi-part domains
             
             # Analyze page data if provided
             if page_data:
@@ -171,6 +185,12 @@ class StaticAnalyzer:
                 self.findings.append(f"Suspicious TLD '{tld}' - commonly used in phishing")
                 self.risk_score += 15
                 break
+        
+        # Also check for suspicious domain patterns (verify/confirm + security keywords)
+        if domain.startswith('verify-') or domain.startswith('confirm-') or '-verify-' in domain or '-confirm-' in domain:
+            if any(keyword in domain for keyword in ['protect', 'security', 'check', 'validate', 'confirm', 'verify', 'alert', 'alert']):
+                self.findings.append(f"Suspicious pattern: verify/confirm with protection/security keywords")
+                self.risk_score += 25
     
     def _check_homoglyphs(self, url: str):
         """Detect homoglyph attacks (look-alike characters)"""
@@ -186,10 +206,17 @@ class StaticAnalyzer:
             self.risk_score += 20
     
     def _check_suspicious_keywords(self, url: str):
-        """Check for phishing-related keywords"""
+        """Check for phishing-related keywords with critical keyword boost"""
         url_lower = url.lower()
         found_keywords = []
+        found_critical = []
         
+        # Check for CRITICAL phishing keywords (very high confidence)
+        for keyword in self.CRITICAL_PHISHING_KEYWORDS:
+            if keyword in url_lower:
+                found_critical.append(keyword)
+        
+        # Check for regular suspicious keywords
         for keyword in self.SUSPICIOUS_KEYWORDS:
             if keyword in url_lower:
                 found_keywords.append(keyword)
@@ -197,20 +224,34 @@ class StaticAnalyzer:
         # Check for phishing-indicator domains
         for phishing_domain in self.PHISHING_DOMAINS:
             if phishing_domain.lower() in url_lower:
-                self.findings.append(f"🚨 CRITICAL: Phishing indicator domain detected: {phishing_domain}")
+                self.findings.append(f"Phishing indicator domain detected: {phishing_domain}")
                 self.risk_score += 35  # BOOST RISK FOR KNOWN PHISHING INDICATORS
         
+        # CRITICAL KEYWORDS - Very high risk
+        if found_critical:
+            critical_count = len(found_critical)
+            if critical_count >= 2:
+                self.findings.append(f"CRITICAL: Multiple phishing keywords detected: {', '.join(found_critical[:3])}")
+                self.risk_score += 40  # MASSIVE BOOST for 2+ critical indicators
+            elif critical_count == 1:
+                self.findings.append(f"CRITICAL: Phishing keyword detected: {found_critical[0]}")
+                self.risk_score += 30  # LARGE BOOST for critical indicator
+        
+        # REGULAR KEYWORDS
         if found_keywords:
             count = len(found_keywords)
-            if count >= 3:
+            if count >= 4:
                 self.findings.append(f"Multiple suspicious keywords: {', '.join(found_keywords[:5])} - likely phishing")
-                self.risk_score += 25  # INCREASED from 18
+                self.risk_score += 30  # INCREASED from 25
+            elif count >= 3:
+                self.findings.append(f"Multiple suspicious keywords: {', '.join(found_keywords[:3])}")
+                self.risk_score += 25  # INCREASED from 25
             elif count >= 2:
                 self.findings.append(f"Suspicious keywords: {', '.join(found_keywords)}")
-                self.risk_score += 18  # INCREASED from 10
+                self.risk_score += 18  # INCREASED from 18
             elif count == 1:
                 self.findings.append(f"Suspicious keyword: {found_keywords[0]}")
-                self.risk_score += 8   # INCREASED from 4
+                self.risk_score += 8
     
     def _check_subdomain_depth(self, parsed):
         """Check for excessive subdomain nesting"""
@@ -304,6 +345,62 @@ class StaticAnalyzer:
         if redirect_count > 3:
             self.findings.append(f"Multiple redirect scripts ({redirect_count}) - possible chain")
             self.risk_score += 10
+    
+    def _check_domain_impersonation(self, url: str):
+        """Check for domain impersonation patterns (e.g., secure-paypal-login, amazon-order-alert)"""
+        url_lower = url.lower()
+        
+        # Known brands that attackers impersonate
+        brands = ['paypal', 'amazon', 'microsoft', 'apple', 'google', 'facebook', 'bank', 'banking',
+                  'paytm', 'instagram', 'insta', 'steam', 'discord', 'ebay', 'shopify']
+        
+        # Check for brand + suspicious word patterns (e.g., "paypal-update", "amazon-alert")
+        impersonation_patterns = [
+            '-update-', '-alert-', '-verify-', '-confirm-', '-recovery-', '-reset-',
+            '-help-', '-support-', '-account-', '-login-', '-auth-', '-security-'
+        ]
+        
+        found_impersonations = []
+        for brand in brands:
+            for pattern in impersonation_patterns:
+                if brand in url_lower and pattern in url_lower:
+                    found_impersonations.append(f"{brand}{pattern}")
+        
+        if found_impersonations:
+            self.findings.append(f"Domain impersonation detected: {', '.join(found_impersonations[:2])}")
+            self.risk_score += 30  # HIGH BOOST for domain impersonation
+
+    def _check_hyphenated_keywords(self, url: str):
+        """Check for hyphenated suspicious keyword combinations (e.g., 'secure-login', 'update-verify')"""
+        url_lower = url.lower()
+        
+        # Common suspicious hyphenated patterns
+        hyphenated_patterns = [
+            'secure-', '-login', '-verify', '-confirm', '-update', '-alert',
+            'banking-', 'account-', 'check-', '-session', '-password', '-recovery',
+            '-help', '-support', '-service', '-validation', '-authentication'
+        ]
+        
+        # Look for domain with multiple hyphenated keywords
+        domain_part = url_lower.split('/')[2]  # Get domain from URL
+        
+        hyphen_count = 0
+        found_patterns = []
+        for pattern in hyphenated_patterns:
+            if pattern in domain_part:
+                hyphen_count += 1
+                found_patterns.append(pattern.replace('-', ''))
+        
+        # Multiple hyphenated patterns = high phishing indicator
+        if hyphen_count >= 3:
+            self.findings.append(f"Multiple hyphenated keywords in domain: {', '.join(found_patterns[:3])}")
+            self.risk_score += 35  # INCREASED BOOST for 3+ patterns
+        elif hyphen_count >= 2:
+            self.findings.append(f"Multiple hyphenated keywords in domain: {', '.join(found_patterns[:3])}")
+            self.risk_score += 25  # BOOST for 2+ hyphenated keywords
+        elif hyphen_count == 1 and any(k in domain_part for k in ['verify', 'confirm', 'update', 'alert', 'login', 'secure']):
+            self.findings.append(f"Hyphenated phishing keyword: {found_patterns[0]}")
+            self.risk_score += 12
 
 
 # Quick test function

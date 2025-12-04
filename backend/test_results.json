@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-12-05T01:32:50.176568",
+  "timestamp": "2025-12-05T01:48:38.705329",
   "total_tests": 5,
   "passed": 5,
   "failed": 0,
@@ -27,7 +27,7 @@
       "url": "https://www.google.com",
       "status": "PASS",
       "classification": "BENIGN",
-      "risk_score": 8.6
+      "risk_score": 21.5
     },
     {
       "url": "https://github.com",

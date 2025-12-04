@@ -58,12 +58,12 @@ class UnifiedRiskEngine:
     
     # Layer weights (must sum to 1.0)
     WEIGHTS = {
-        'ml': 0.25,           # Machine Learning (highest weight)
-        'static': 0.20,       # Static Analysis
-        'reputation': 0.20,   # Threat Intelligence
+        'ml': 0.15,           # Machine Learning 
+        'static': 0.50,       # Static Analysis (DOMINANT - most reliable for new phishing URLs)
+        'reputation': 0.10,   # Threat Intelligence (APIs often lag on new URLs)
         'heuristic': 0.15,    # Behavioral Heuristics
-        'signature': 0.10,    # Signature Matching
-        'owasp': 0.10         # OWASP Security Checks
+        'signature': 0.05,    # Signature Matching
+        'owasp': 0.05         # OWASP Security Checks
     }
     
     # Classification thresholds
@@ -337,17 +337,19 @@ class UnifiedRiskEngine:
     
     def _calculate_overall_risk(self, layer_results: dict) -> float:
         """
-        Calculate weighted overall risk score
+        Calculate weighted overall risk score with boosting for multiple signals
         
         Formula:
         overall_risk = (
-            0.25 * ml_confidence +
-            0.20 * static_analysis_score +
-            0.20 * (100 - reputation_score) +
+            0.15 * ml_confidence +
+            0.50 * static_analysis_score +
+            0.10 * (100 - reputation_score) +
             0.15 * heuristic_score +
-            0.10 * signature_score +
-            0.10 * owasp_risk_score
+            0.05 * signature_score +
+            0.05 * owasp_risk_score
         )
+        
+        Then boost if multiple critical indicators present.
         """
         ml_score = layer_results.get('machine_learning', {}).get('risk_score', 0)
         static_score = layer_results.get('static_analysis', {}).get('risk_score', 0)
@@ -364,6 +366,16 @@ class UnifiedRiskEngine:
             self.WEIGHTS['signature'] * signature_score +
             self.WEIGHTS['owasp'] * owasp_score
         )
+        
+        # BOOST for multiple warning signs
+        # If static analysis is high (>50%) AND multiple layers agree, boost the score
+        if static_score > 50:
+            warning_count = sum([
+                1 for score in [ml_score, heuristic_score, signature_score] if score > 20
+            ])
+            if warning_count >= 1:  # If any other layer also shows concern
+                boost_factor = 1.0 + (0.10 * warning_count)  # +10% per warning layer
+                overall_risk = overall_risk * boost_factor
         
         return min(100, max(0, overall_risk))
     
