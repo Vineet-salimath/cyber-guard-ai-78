@@ -1,0 +1,495 @@
+/* ============================================================ */
+/* MALWARE SNIPPER - COMPLETE STYLING */
+/* ============================================================ */
+/* Dark blue theme (#1e3a5f, #2d4a6f) with cyan accents (#00BCD4) */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 500px;
+  min-height: 600px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #1e3a5f 0%, #2d4a6f 100%);
+  color: #fff;
+  overflow-x: hidden;
+}
+
+/* ============================================================ */
+/* HEADER SECTION */
+/* ============================================================ */
+.popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: linear-gradient(180deg, rgba(29, 53, 87, 0.8) 0%, rgba(45, 74, 111, 0.6) 100%);
+  border-bottom: 2px solid #00BCD4;
+  box-shadow: 0 4px 12px rgba(0, 188, 212, 0.2);
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.shield-icon {
+  font-size: 24px;
+  filter: drop-shadow(0 0 4px #00BCD4);
+}
+
+.header-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #00BCD4;
+  letter-spacing: 0.5px;
+}
+
+.connection-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #b3e5fc;
+}
+
+.indicator-dot {
+  width: 8px;
+  height: 8px;
+  background: #4CAF50;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ============================================================ */
+/* PROTECTION SECTION */
+/* ============================================================ */
+.protection-section {
+  padding: 16px 20px;
+  background: rgba(29, 53, 87, 0.5);
+  border-bottom: 1px solid rgba(0, 188, 212, 0.2);
+}
+
+.toggle-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.toggle-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e0f2f1;
+}
+
+/* Toggle Switch */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 26px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #424242;
+  transition: 0.3s;
+  border-radius: 26px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #00BCD4;
+}
+
+input:checked + .slider:before {
+  transform: translateX(24px);
+}
+
+/* ============================================================ */
+/* STATS SECTION */
+/* ============================================================ */
+.stats-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  padding: 16px 20px;
+  background: rgba(29, 53, 87, 0.3);
+}
+
+.stat-card {
+  background: rgba(45, 74, 111, 0.6);
+  border: 1px solid rgba(0, 188, 212, 0.3);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.stat-card:hover {
+  border-color: #00BCD4;
+  background: rgba(45, 74, 111, 0.8);
+  box-shadow: 0 4px 12px rgba(0, 188, 212, 0.15);
+}
+
+.stat-number {
+  font-size: 28px;
+  font-weight: 700;
+  color: #00BCD4;
+  margin-bottom: 6px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #b3e5fc;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ============================================================ */
+/* STATUS WIDGET - DYNAMIC CLASSES (CORE FIX #2) */
+/* ============================================================ */
+.status-widget {
+  border-left: 4px solid #4CAF50;
+  background: rgba(76, 175, 80, 0.1);
+}
+
+/* SAFE Status (Green) */
+.status-widget.safe {
+  border-left-color: #4CAF50;
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(76, 175, 80, 0.05) 100%);
+  box-shadow: 0 0 12px rgba(76, 175, 80, 0.2);
+}
+
+.status-widget.safe .stat-number {
+  color: #4CAF50;
+  text-shadow: 0 0 8px rgba(76, 175, 80, 0.4);
+}
+
+/* SUSPICIOUS Status (Orange) - CORE FIX #1 */
+.status-widget.suspicious {
+  border-left-color: #FF9800;
+  background: linear-gradient(135deg, rgba(255, 152, 0, 0.15) 0%, rgba(255, 152, 0, 0.05) 100%);
+  box-shadow: 0 0 12px rgba(255, 152, 0, 0.2);
+  animation: suspiciousAlert 1.5s ease-in-out;
+}
+
+.status-widget.suspicious .stat-number {
+  color: #FF9800;
+  text-shadow: 0 0 8px rgba(255, 152, 0, 0.4);
+}
+
+@keyframes suspiciousAlert {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+/* DANGER Status (Red) - MALICIOUS */
+.status-widget.danger {
+  border-left-color: #F44336;
+  background: linear-gradient(135deg, rgba(244, 67, 54, 0.15) 0%, rgba(244, 67, 54, 0.05) 100%);
+  box-shadow: 0 0 16px rgba(244, 67, 54, 0.3);
+  animation: dangerAlert 0.8s ease-in-out;
+}
+
+.status-widget.danger .stat-number {
+  color: #F44336;
+  text-shadow: 0 0 12px rgba(244, 67, 54, 0.5);
+}
+
+@keyframes dangerAlert {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+
+/* ============================================================ */
+/* ALERTS SECTION */
+/* ============================================================ */
+.alerts-section {
+  padding: 16px 20px;
+  background: rgba(29, 53, 87, 0.3);
+  border-top: 1px solid rgba(0, 188, 212, 0.2);
+  border-bottom: 1px solid rgba(0, 188, 212, 0.2);
+}
+
+.alerts-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #00BCD4;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.alerts-container {
+  max-height: 200px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Custom Scrollbar */
+.alerts-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.alerts-container::-webkit-scrollbar-track {
+  background: rgba(0, 188, 212, 0.1);
+  border-radius: 3px;
+}
+
+.alerts-container::-webkit-scrollbar-thumb {
+  background: rgba(0, 188, 212, 0.3);
+  border-radius: 3px;
+}
+
+.alerts-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 188, 212, 0.5);
+}
+
+/* ============================================================ */
+/* ALERT ITEM STYLING */
+/* ============================================================ */
+.alert-item {
+  background: rgba(45, 74, 111, 0.5);
+  border-radius: 6px;
+  padding: 10px 12px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.alert-item:hover {
+  background: rgba(45, 74, 111, 0.7);
+  transform: translateX(2px);
+}
+
+.alert-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.alert-badge {
+  font-size: 14px;
+}
+
+.alert-classification {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* Classification colors */
+.alert-classification.safe {
+  color: #4CAF50;
+}
+
+.alert-classification.suspicious {
+  color: #FF9800;
+}
+
+.alert-classification.malicious {
+  color: #F44336;
+}
+
+.alert-url {
+  font-size: 11px;
+  color: #b3e5fc;
+  margin-bottom: 6px;
+  word-break: break-all;
+  font-family: 'Courier New', monospace;
+  opacity: 0.9;
+}
+
+.alert-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #80deea;
+}
+
+.alert-risk {
+  font-weight: 600;
+}
+
+.alert-time {
+  opacity: 0.7;
+}
+
+/* Alert item borders based on threat level */
+.alert-item.safe {
+  border-left: 4px solid #4CAF50;
+}
+
+.alert-item.suspicious {
+  border-left: 4px solid #FF9800;
+}
+
+.alert-item.malicious {
+  border-left: 4px solid #F44336;
+}
+
+.no-alerts {
+  text-align: center;
+  padding: 24px;
+  color: #80deea;
+}
+
+.no-alerts-icon {
+  font-size: 32px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.no-alerts p {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* ============================================================ */
+/* BUTTONS SECTION */
+/* ============================================================ */
+.buttons-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 16px 20px;
+  background: rgba(29, 53, 87, 0.5);
+}
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-icon {
+  font-size: 16px;
+}
+
+/* Dashboard Button */
+.btn-dashboard {
+  background: linear-gradient(135deg, #00BCD4 0%, #0097A7 100%);
+  color: white;
+}
+
+.btn-dashboard:hover {
+  background: linear-gradient(135deg, #00E5FF 0%, #00BCD4 100%);
+  box-shadow: 0 6px 16px rgba(0, 188, 212, 0.3);
+}
+
+/* Scan Button */
+.btn-scan {
+  background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);
+  color: white;
+}
+
+.btn-scan:hover {
+  background: linear-gradient(135deg, #66BB6A 0%, #43A047 100%);
+  box-shadow: 0 6px 16px rgba(76, 175, 80, 0.3);
+}
+
+/* ============================================================ */
+/* RESPONSIVE DESIGN */
+/* ============================================================ */
+@media (max-width: 400px) {
+  body {
+    width: 100%;
+  }
+  
+  .stats-section {
+    grid-template-columns: 1fr 1fr;
+  }
+  
+  .stat-card:nth-child(3) {
+    grid-column: 1 / -1;
+  }
+  
+  .alerts-container {
+    max-height: 150px;
+  }
+}
+
+/* ============================================================ */
+/* ANIMATIONS */
+/* ============================================================ */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stat-card {
+  animation: fadeIn 0.3s ease;
+}
+
+.alert-item {
+  animation: fadeIn 0.2s ease;
+}

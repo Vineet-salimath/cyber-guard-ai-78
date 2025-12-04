@@ -1,9 +1,9 @@
 {
-  "total_scans": 15,
-  "benign_count": 15,
+  "total_scans": 17,
+  "benign_count": 17,
   "suspicious_count": 0,
   "malicious_count": 0,
-  "last_updated": "2025-11-21T17:52:08.896921",
+  "last_updated": "2025-12-05T01:13:33.557753",
   "scan_history": [
     {
       "url": "http://localhost:8080/dashboard",
@@ -133,6 +133,20 @@
       "score": 10,
       "ml_prediction": null,
       "timestamp": "2025-11-21T17:52:08.896906"
+    },
+    {
+      "url": "https://www.linkedin.com/in/vineet-salimath-/",
+      "risk": "benign",
+      "score": 10,
+      "ml_prediction": null,
+      "timestamp": "2025-12-05T01:12:00.673302"
+    },
+    {
+      "url": "https://www.linkedin.com/in/vineet-salimath-/",
+      "risk": "benign",
+      "score": 10,
+      "ml_prediction": null,
+      "timestamp": "2025-12-05T01:13:33.557736"
     }
   ]
 }
