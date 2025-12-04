@@ -1,0 +1,39 @@
+{
+  "timestamp": "2025-12-05T01:32:50.176568",
+  "total_tests": 5,
+  "passed": 5,
+  "failed": 0,
+  "success_rate": "100.0%",
+  "results": [
+    {
+      "url": "http://testsafebrowsing.appspot.com/s/phishing.html",
+      "status": "PASS",
+      "classification": "MALICIOUS",
+      "risk_score": 85
+    },
+    {
+      "url": "http://www.testingmcafeesites.com/testcat_be.html",
+      "status": "PASS",
+      "classification": "MALICIOUS",
+      "risk_score": 80
+    },
+    {
+      "url": "https://testsafebrowsing.appspot.com/s/phishing.html",
+      "status": "PASS",
+      "classification": "MALICIOUS",
+      "risk_score": 85
+    },
+    {
+      "url": "https://www.google.com",
+      "status": "PASS",
+      "classification": "BENIGN",
+      "risk_score": 8.6
+    },
+    {
+      "url": "https://github.com",
+      "status": "PASS",
+      "classification": "BENIGN",
+      "risk_score": 0
+    }
+  ]
+}
