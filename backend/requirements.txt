@@ -5,6 +5,10 @@ flask-socketio==5.3.4
 requests==2.31.0
 python-dotenv==1.0.0
 
+# Blog feature dependencies
+feedparser==6.0.10             # RSS feed parsing
+APScheduler==3.10.4            # Background task scheduling
+
 # Multi-layer security analysis dependencies
 python-whois==0.8.0           # Domain age lookup
 dnspython==2.4.2               # DNS resolution

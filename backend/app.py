@@ -1,7 +1,7 @@
 # MALWARE SNIPPER - BACKEND API SERVER
 # Integrates with VirusTotal API (70+ engines) and NVD for CVE/CVSS data
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 from urllib.parse import urlparse
@@ -13,6 +13,10 @@ import time
 import hashlib
 import re
 import sys
+import sqlite3
+import feedparser
+from apscheduler.schedulers.background import BackgroundScheduler
+import atexit
 
 # Add ml directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'ml'))
@@ -83,6 +87,32 @@ app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
+# ═══════════════════════════════════════════════════════════════════════════
+# URL SCANNER BLUEPRINT - Real-time Scanning Pipeline
+# ═══════════════════════════════════════════════════════════════════════════
+try:
+    from scanner_routes import url_scanner_bp, register_socketio_handlers
+    SCANNER_ROUTES_AVAILABLE = True
+    print("✅ URL Scanner routes loaded (end-to-end pipeline)")
+except ImportError as e:
+    print(f"⚠️ URL Scanner routes not available: {e}")
+    SCANNER_ROUTES_AVAILABLE = False
+    url_scanner_bp = None
+
+# ═══════════════════════════════════════════════════════════════════════════
+# REGISTER BLUEPRINTS & HANDLERS
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Register URL Scanner Blueprint
+if SCANNER_ROUTES_AVAILABLE and url_scanner_bp:
+    app.register_blueprint(url_scanner_bp)
+    print("✅ URL Scanner blueprint registered")
+    
+    # Register SocketIO handlers
+    if 'register_socketio_handlers' in dir():
+        register_socketio_handlers(socketio)
+        print("✅ SocketIO handlers registered for real-time updates")
+
 # Initialize ML detector if available
 ml_detector = SimpleMalwareDetector() if ML_AVAILABLE else None
 
@@ -91,6 +121,51 @@ risk_engine = None
 if RISK_ENGINE_AVAILABLE and UnifiedRiskEngine:
     risk_engine = UnifiedRiskEngine(api_keys=api_keys, base_ml_detector=ml_detector)
     print("✅ Multi-layer security analysis engine ready")
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CYBERSECURITY NEWS - DYNAMIC FROM NEWSAPI ONLY
+# ═══════════════════════════════════════════════════════════════════════════
+# NOTE: All news fetching is NOW DYNAMIC from NewsAPI
+# No database storage - pure live API calls
+# See /api/news/newsapi endpoints for live fetching
+
+print("✅ News system: Dynamic NewsAPI fetching only (no database storage)")
+
+# Skip initial blogs fetch on startup to avoid database lock
+# The scheduler will fetch blogs after the server is ready
+# try:
+#     print("📰 Fetching initial blogs on startup...")
+#     fetch_cybersecurity_news()
+# except Exception as e:
+#     print(f"⚠️ Initial blog fetch warning: {e}")
+
+# Setup APScheduler for periodic blog updates (10-minute interval)
+# Disabled for now - use manual fetch via fetch_blogs_now.py
+# try:
+#     scheduler = BackgroundScheduler()
+#     scheduler.add_job(
+#         func=fetch_cybersecurity_news,
+#         trigger="interval",
+#         minutes=10,
+#         id='blog_update_job',
+#         name='Fetch cybersecurity news every 10 minutes',
+#         replace_existing=True,
+#         max_instances=1
+#     )
+#     scheduler.start()
+#     print("✅ Blog scheduler initialized (10-minute interval)")
+# except Exception as e:
+#     print(f"⚠️ Blog scheduler warning (non-critical): {e}")
+#     scheduler = None
+
+# Shutdown scheduler gracefully on app exit
+def shutdown_scheduler():
+    try:
+        pass  # scheduler disabled
+    except:
+        pass
+
+# atexit.register(shutdown_scheduler)  # Disabled
 
 # VirusTotal API configuration
 VIRUSTOTAL_API_KEY = os.getenv('VIRUSTOTAL_API_KEY', 'your_api_key_here')
@@ -116,6 +191,276 @@ def health_check():
         'status': 'healthy',
         'service': 'Malware Snipper Scanner',
         'timestamp': datetime.now().isoformat()
+    })
+
+# ═══════════════════════════════════════════════════════════════════════════
+# BLOG API ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════
+
+# ═══════════════════════════════════════════════════════════════════════════
+# UNIFIED CYBERSECURITY NEWS FEED - Real-time aggregation (Dynamic NewsAPI only)
+# ═══════════════════════════════════════════════════════════════════════════
+# NOTE: Old /api/blogs endpoints REMOVED - using NewsAPI dynamic fetching only
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CYBERSECURITY NEWS - PURE NEWSAPI DYNAMIC FETCHING (NO DATABASE)
+# ═══════════════════════════════════════════════════════════════════════════
+
+@app.route('/api/cyber-news', methods=['GET'])
+def get_unified_cyber_news():
+    """
+    GET REAL-TIME CYBERSECURITY NEWS FROM NEWSAPI
+    Fresh articles on every request - NO CACHING, NO DATABASE
+    
+    Query Parameters:
+    - category: Filter by category (malware, ransomware, vulnerability, threat, breach, all)
+    - limit: Number of articles to fetch (default: 30, max: 50)
+    
+    Example: /api/cyber-news?category=malware&limit=10
+    """
+    try:
+        # Get query parameters
+        category_filter = request.args.get('category', 'all').lower()  # Default: all
+        limit = int(request.args.get('limit', 30))
+        limit = min(limit, 50)  # Cap at 50
+        
+        print(f"\n🔄 LIVE NEWS REQUEST - Category: {category_filter}, Limit: {limit}")
+        
+        # Set no-cache headers
+        response_headers = {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        }
+        
+        # Define cybersecurity categories
+        cyber_categories = ['malware', 'ransomware', 'vulnerability', 'threat', 'breach', 'phishing', 'ddos', 'exploit']
+        
+        # Validate category filter
+        if category_filter not in ['all'] + cyber_categories:
+            category_filter = 'all'
+        
+        # Try to import and use NewsAPI
+        try:
+            from news_manager import CyberNewsManager
+            news_mgr = CyberNewsManager()
+            
+            # Fetch from NewsAPI - returns a list of articles
+            articles_list = news_mgr.fetch_from_newsapi(limit=limit)
+            
+            if isinstance(articles_list, list) and len(articles_list) > 0:
+                # Transform articles to response format
+                articles = []
+                for article in articles_list:
+                    try:
+                        article_category = article.get('category', 'general').lower()
+                        
+                        # Filter by category if specified
+                        if category_filter != 'all' and article_category != category_filter:
+                            continue
+                        
+                        articles.append({
+                            'title': article.get('title', 'N/A'),
+                            'link': article.get('link', article.get('url', '')),
+                            'pubDate': article.get('published', article.get('publishedAt', datetime.now().isoformat())),
+                            'contentSnippet': article.get('description', '')[:250],
+                            'source': article.get('source', 'NewsAPI'),
+                            'image': article.get('image_url', ''),
+                            'category': article_category,
+                            'priority': article.get('priority', 'medium'),
+                            'fetched_at': datetime.now().isoformat()
+                        })
+                    except Exception as ae:
+                        print(f"⚠️ Error transforming article: {ae}")
+                        continue
+                
+                # Sort by date (newest first)
+                articles.sort(key=lambda x: x['pubDate'], reverse=True)
+                
+                # If filter applied and no results, show message
+                if category_filter != 'all' and len(articles) == 0:
+                    print(f"⚠️ No articles found for category: {category_filter}")
+                    return jsonify({
+                        'success': False,
+                        'error': f'No articles found for category: {category_filter}',
+                        'articles': [],
+                        'total': 0,
+                        'category': category_filter,
+                        'message': f'No {category_filter} news available'
+                    }), 404
+                
+                print(f"✅ SUCCESS: {len(articles)} FRESH articles fetched from NewsAPI (Category: {category_filter})")
+                
+                return jsonify({
+                    'success': True,
+                    'articles': articles,
+                    'total': len(articles),
+                    'category': category_filter,
+                    'last_updated': datetime.now().isoformat(),
+                    'cached': False,
+                    'source': 'NewsAPI',
+                    'available_categories': cyber_categories + ['all'],
+                    'message': f'LIVE DATA - Fresh {category_filter} articles from NewsAPI'
+                }), 200, response_headers
+            else:
+                print(f"⚠️ No articles fetched from NewsAPI, got: {type(articles_list)}")
+                return jsonify({
+                    'success': False,
+                    'error': 'No articles available from NewsAPI',
+                    'articles': [],
+                    'total': 0,
+                    'message': 'No articles fetched from NewsAPI'
+                }), 404
+        
+        except ImportError as ie:
+            print(f"⚠️ Import error: {ie}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                'success': False,
+                'error': str(ie),
+                'articles': [],
+                'total': 0,
+                'message': 'NewsAPI module import error'
+            }), 500
+        
+    except Exception as e:
+        print(f"❌ LIVE NEWS API ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'articles': [],
+            'total': 0,
+            'cached': False,
+            'message': 'Failed to fetch live news'
+        }), 500
+
+# ═══════════════════════════════════════════════════════════════════════════
+# DIRECT NEWSAPI ENDPOINT - Fresh from NewsAPI
+# ═══════════════════════════════════════════════════════════════════════════
+
+@app.route('/api/newsapi', methods=['GET'])
+def get_newsapi_articles():
+    """
+    GET FRESH NEWS DIRECTLY FROM NEWSAPI
+    Fetches cybersecurity news directly from NewsAPI endpoint
+    No database caching - always fresh
+    """
+    try:
+        from backend.news_manager import CyberNewsManager
+        
+        limit = request.args.get('limit', 20, type=int)
+        limit = min(limit, 50)  # Cap at 50
+        
+        print(f"\n📰 NEWSAPI REQUEST - Fetching {limit} fresh articles from NewsAPI...")
+        
+        manager = CyberNewsManager()
+        articles = manager.fetch_from_newsapi(limit=limit)
+        
+        response_headers = {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        }
+        
+        if articles:
+            print(f"✅ SUCCESS: {len(articles)} articles fetched from NewsAPI")
+            return jsonify({
+                'success': True,
+                'source': 'NewsAPI',
+                'articles': articles,
+                'total': len(articles),
+                'fetched_at': datetime.now().isoformat(),
+                'cache': 'DISABLED - Direct API',
+                'message': f'Fresh articles from NewsAPI (no database, no caching)'
+            }), 200, response_headers
+        else:
+            print("⚠️ No articles returned from NewsAPI")
+            return jsonify({
+                'success': False,
+                'source': 'NewsAPI',
+                'articles': [],
+                'total': 0,
+                'message': 'No articles found from NewsAPI'
+            }), 204, response_headers
+    
+    except Exception as e:
+        print(f"❌ NewsAPI ERROR: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'articles': [],
+            'total': 0,
+            'message': 'Failed to fetch from NewsAPI'
+        }), 500
+
+# ═══════════════════════════════════════════════════════════════════════════
+# LIVE NEWS STREAMING - SERVER-SENT EVENTS (SSE)
+# ═══════════════════════════════════════════════════════════════════════════
+
+@app.route('/api/news/live', methods=['GET'])
+def get_live_news():
+    """
+    Fetch live cybersecurity news immediately (instant fetch)
+    Redirects to main /api/cyber-news endpoint for pure NewsAPI fetching
+    """
+    # Simply call the main cyber-news endpoint
+    return get_unified_cyber_news()
+
+@app.route('/api/news/stream', methods=['GET'])
+def news_stream():
+    """
+    Server-Sent Events (SSE) endpoint for live streaming news from NewsAPI
+    Pushes new articles every 30 minutes automatically
+    """
+    def generate():
+        print("🔴 SSE Connection established - streaming live news from NewsAPI")
+        try:
+            import json
+            import time
+            
+            while True:
+                try:
+                    # Fetch fresh articles from NewsAPI
+                    from news_manager import CyberNewsManager
+                    news_mgr = CyberNewsManager()
+                    articles_list = news_mgr.fetch_from_newsapi(limit=10)
+                    
+                    if articles_list:
+                        articles = []
+                        for article in articles_list[:6]:
+                            articles.append({
+                                'title': article.get('title', 'N/A'),
+                                'link': article.get('link', ''),
+                                'pubDate': article.get('published', datetime.now().isoformat()),
+                                'description': article.get('description', '')[:200],
+                                'source': article.get('source', 'NewsAPI'),
+                            })
+                        
+                        print(f"🔴 SSE Push: {len(articles)} articles - {datetime.now().isoformat()}")
+                        
+                        # Send SSE event
+                        yield f"data: {json.dumps({'articles': articles, 'timestamp': datetime.now().isoformat(), 'source': 'NewsAPI'})}\n\n"
+                except Exception as e:
+                    print(f"⚠️ SSE fetch error: {e}")
+                    yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                
+                # Wait 30 minutes before next update
+                time.sleep(1800)  # 30 minutes
+                
+        except GeneratorExit:
+            print("🔴 SSE Connection closed")
+        except Exception as e:
+            print(f"❌ SSE Stream error: {e}")
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+    
+    return Response(generate(), mimetype='text/event-stream', headers={
+        'Cache-Control': 'no-cache',
+        'X-Accel-Buffering': 'no',
+        'Connection': 'keep-alive'
     })
 
 @app.route('/scan-url', methods=['POST'])
@@ -2554,6 +2899,12 @@ if __name__ == '__main__':
     print(f"🔑 VirusTotal API: {'Configured' if VIRUSTOTAL_API_KEY != 'your_api_key_here' else 'NOT CONFIGURED (using mock data)'}")
     print("="*50)
     print("\n📍 API Endpoints:")
+    print("  POST   /api/scanner/submit-url      Submit URL for scanning [NEW]")
+    print("  GET    /api/scanner/status/<id>     Get scan status [NEW]")
+    print("  GET    /api/scanner/results/<id>    Get complete results [NEW]")
+    print("  GET    /api/scanner/history         Get scan history [NEW]")
+    print("  GET    /api/scanner/statistics      Get statistics [NEW]")
+    print("  POST   /api/scanner/batch-submit    Batch submit URLs [NEW]")
     print("  POST   /api/scan             [PRIMARY] Real-time URL scan")
     print("  GET    /api/scan/stats       Persistent scan statistics")
     print("  GET    /api/scan/history     Recent scan history")
@@ -2563,7 +2914,12 @@ if __name__ == '__main__':
     print("  GET    /health               Health check")
     print("="*50)
     print("🔥 WebSocket ENABLED for real-time updates")
+    print("🔥 URL Scanner Blueprint ENABLED (end-to-end pipeline)")
     print("="*50)
     
+    # News now fetches dynamically from NewsAPI - no startup fetch needed
+    print("✅ News system ready for dynamic NewsAPI fetching")
+    
+    print("\n🚀 Starting server...\n")
     socketio.run(app, host='0.0.0.0', port=5000, debug=False, use_reloader=False)
 

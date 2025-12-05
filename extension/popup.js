@@ -1,12 +1,21 @@
 // ============================================
 // MALWARESNIPPER - POPUP UI
+// Real-time Status Toggle & ML Risk Scoring
 // ============================================
 
 let scans = [];
 let stats = {
   monitored: 0,
   threats: 0,
-  status: 'SAFE'
+  status: 'SAFE',
+  currentRisk: 0
+};
+
+// Status mapping based on risk score
+const RISK_THRESHOLDS = {
+  SAFE: { min: 0, max: 40, color: '#00ff88', bgColor: 'rgba(0, 255, 136, 0.1)', borderColor: 'rgba(0, 255, 136, 0.3)', icon: '✓' },
+  SUSPICIOUS: { min: 40, max: 70, color: '#ffc107', bgColor: 'rgba(255, 193, 7, 0.1)', borderColor: 'rgba(255, 193, 7, 0.3)', icon: '⚠' },
+  THREAT: { min: 70, max: 100, color: '#ff5252', bgColor: 'rgba(255, 82, 82, 0.1)', borderColor: 'rgba(255, 82, 82, 0.3)', icon: '✗' }
 };
 
 // Initialize popup
@@ -26,9 +35,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Check connection status
   checkConnectionStatus();
   
-  // Listen for real-time updates from background
+  // Listen for real-time updates from background (SCAN RESULTS)
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === 'statsUpdated') {
+    if (message.type === 'SCAN_RESULT') {
+      console.log('🎯 Scan result received:', message.riskScore);
+      // Update status immediately based on risk score
+      updateStatus(message.riskScore);
+      // Reload all data
+      loadStats().then(() => {
+        loadRecentAlerts().then(() => {
+          updateUI();
+        });
+      });
+    } else if (message.action === 'statsUpdated') {
       console.log('📊 Stats updated - refreshing UI');
       loadStats().then(() => {
         loadRecentAlerts().then(() => {
@@ -49,16 +68,73 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Load stats from storage
 async function loadStats() {
   try {
-    const result = await chrome.storage.local.get(['stats', 'scans']);
+    const result = await chrome.storage.local.get(['stats', 'scans', 'currentRisk']);
     if (result.stats) {
       stats = result.stats;
     }
     if (result.scans) {
       scans = result.scans || [];
     }
+    // Load last known risk score
+    if (result.currentRisk !== undefined) {
+      stats.currentRisk = result.currentRisk;
+    }
   } catch (error) {
     console.error('Error loading stats:', error);
   }
+}
+
+// ============================================
+// 🔥 REAL-TIME STATUS UPDATE FUNCTION
+// ============================================
+async function updateStatus(riskScore) {
+  console.log(`🎯 Updating status for risk: ${riskScore}%`);
+  
+  // Determine status based on risk score
+  let statusLabel = 'SAFE';
+  let statusTheme = RISK_THRESHOLDS.SAFE;
+  
+  if (riskScore >= 70) {
+    statusLabel = 'THREAT';
+    statusTheme = RISK_THRESHOLDS.THREAT;
+  } else if (riskScore >= 40) {
+    statusLabel = 'SUSPICIOUS';
+    statusTheme = RISK_THRESHOLDS.SUSPICIOUS;
+  }
+  
+  // Update stats in memory
+  stats.status = statusLabel;
+  stats.currentRisk = riskScore;
+  
+  // Save to storage for persistence
+  await chrome.storage.local.set({ 
+    stats: stats,
+    currentRisk: riskScore 
+  });
+  
+  // 🎨 Update the status card immediately
+  const statusCard = document.querySelector('.stat-card-safe');
+  const statusValue = document.getElementById('statusText');
+  
+  if (statusCard && statusValue) {
+    // Apply smooth transitions
+    statusCard.style.transition = 'all 0.3s ease-in-out';
+    statusValue.style.transition = 'all 0.3s ease-in-out';
+    
+    // Update colors based on threshold
+    statusCard.style.background = statusTheme.bgColor;
+    statusCard.style.borderColor = statusTheme.borderColor;
+    statusValue.style.color = statusTheme.color;
+    statusValue.textContent = statusLabel;
+    
+    // Add subtle animation
+    statusCard.style.transform = 'scale(1.02)';
+    setTimeout(() => {
+      statusCard.style.transform = 'scale(1)';
+    }, 150);
+  }
+  
+  console.log(`✅ Status updated to: ${statusLabel} (Risk: ${riskScore}%)`);
 }
 
 // Load recent alerts
@@ -75,24 +151,23 @@ async function loadRecentAlerts() {
 
 // Update UI with current data
 function updateUI() {
-  // Update stats
+  // Update stats counters
   document.getElementById('monitoredCount').textContent = stats.monitored || 0;
   document.getElementById('threatsCount').textContent = stats.threats || 0;
-  document.getElementById('statusText').textContent = stats.status || 'SAFE';
   
-  // Update status card color
+  // Update status badge based on current risk
   const statusCard = document.querySelector('.stat-card-safe');
   const statusValue = document.getElementById('statusText');
-  if (stats.threats > 0) {
-    statusCard.style.background = 'rgba(255, 82, 82, 0.1)';
-    statusCard.style.borderColor = 'rgba(255, 82, 82, 0.3)';
-    statusValue.style.color = '#ff5252';
-    statusValue.textContent = 'THREAT';
-  } else {
-    statusCard.style.background = 'rgba(0, 255, 136, 0.1)';
-    statusCard.style.borderColor = 'rgba(0, 255, 136, 0.3)';
-    statusValue.style.color = '#00ff88';
-    statusValue.textContent = 'SAFE';
+  
+  // Determine current status from risk score
+  let currentStatus = stats.status || 'SAFE';
+  let currentTheme = RISK_THRESHOLDS[currentStatus] || RISK_THRESHOLDS.SAFE;
+  
+  if (statusCard && statusValue) {
+    statusCard.style.background = currentTheme.bgColor;
+    statusCard.style.borderColor = currentTheme.borderColor;
+    statusValue.style.color = currentTheme.color;
+    statusValue.textContent = currentStatus;
   }
   
   // Render alerts
@@ -256,7 +331,30 @@ function openDashboardWithUrl(url) {
   });
 }
 
+// ============================================
+// MESSAGE LISTENERS
+// ============================================
+
 // Listen for updates from background
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === 'statsUpdated') {
+    loadStats().then(() => {
+      loadRecentAlerts().then(() => {
+        updateUI();
+      });
+    });
+  }
+});
+
+// Refresh stats every 10 seconds
+setInterval(() => {
+  loadStats().then(() => {
+    loadRecentAlerts().then(() => {
+      updateUI();
+    });
+  });
+  checkConnectionStatus();
+}, 10000);
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'statsUpdated') {
     loadStats().then(() => {

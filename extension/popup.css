@@ -145,11 +145,29 @@ input:checked + .toggle-slider:before {
   border-radius: 8px;
   padding: 16px 12px;
   text-align: center;
+  transition: all 0.3s ease-in-out;
 }
 
 .stat-card-safe {
   background: rgba(0, 255, 136, 0.1);
   border-color: rgba(0, 255, 136, 0.3);
+  transition: all 0.3s ease-in-out;
+}
+
+/* Status color states */
+.stat-card.status-safe {
+  background: rgba(0, 255, 136, 0.1);
+  border-color: rgba(0, 255, 136, 0.3);
+}
+
+.stat-card.status-suspicious {
+  background: rgba(255, 193, 7, 0.1);
+  border-color: rgba(255, 193, 7, 0.3);
+}
+
+.stat-card.status-threat {
+  background: rgba(255, 82, 82, 0.1);
+  border-color: rgba(255, 82, 82, 0.3);
 }
 
 .stat-value {
@@ -166,6 +184,7 @@ input:checked + .toggle-slider:before {
   color: #00ff88;
   line-height: 1;
   margin-bottom: 8px;
+  transition: all 0.3s ease-in-out;
 }
 
 .stat-label {
@@ -372,3 +391,24 @@ input:checked + .toggle-slider:before {
   background: rgba(255, 255, 255, 0.15);
   transform: translateY(-1px);
 }
+
+
+
+/* Scrollbar styling for entire popup */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 212, 255, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 212, 255, 0.6);
+}
+

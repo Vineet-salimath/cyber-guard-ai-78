@@ -8,6 +8,7 @@ import Home from "./pages/Home";
 import RealTimeDashboard from "./pages/RealTimeDashboard";
 import SystemDebug from "./pages/SystemDebug";
 import Blog from "./pages/Blog";
+import UnifiedCyberNews from "./pages/UnifiedCyberNews";
 import Feedback from "./pages/Feedback";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/dashboard" element={<RealTimeDashboard />} />
             <Route path="/debug" element={<SystemDebug />} />
             <Route path="/blogs" element={<Blog />} />
+            <Route path="/cyber-news" element={<UnifiedCyberNews />} />
             <Route path="/feedback" element={<Feedback />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/monitor" element={<RealTimeMonitor />} />

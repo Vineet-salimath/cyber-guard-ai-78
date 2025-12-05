@@ -210,20 +210,34 @@ async function scanURL(tabId, url) {
         
         console.log('✅ Analysis complete:', result.final_classification || result.classification);
 
+        // Extract risk score from backend response
+        const riskScore = result.overall_risk || result.risk_score || 0;
+        const classification = result.final_classification || result.classification || 'BENIGN';
+        
         // Update stats
         stats.monitored++;
-        const classification = result.final_classification || result.classification || 'BENIGN';
         if (classification === 'MALICIOUS' || classification === 'SUSPICIOUS') {
           stats.threats++;
           stats.status = 'THREAT';
+        } else {
+          stats.status = 'SAFE';
         }
         await saveStats();
+        
+        // 🔥 Send real-time scan result to popup
+        chrome.runtime.sendMessage({
+          type: 'SCAN_RESULT',
+          riskScore: riskScore,
+          classification: classification,
+          url: url,
+          timestamp: new Date().toISOString()
+        }).catch(err => console.log('Popup not open:', err));
         
         // Save to recent alerts
         await saveScanToAlerts({
           url: url,
           classification: classification,
-          risk_score: result.overall_risk || result.risk_score || 0,
+          risk_score: riskScore,
           timestamp: result.timestamp || new Date().toISOString()
         });
 
