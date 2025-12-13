@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MalwareSnipper</title>
+    <link rel="stylesheet" href="styles_realtime.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                <div class="logo-icon">🛡️</div>
+                <span class="logo-text">MalwareSnipper</span>
+            </div>
+            <div class="connection-status connected">
+                <div class="indicator connected"></div>
+                <span>Connected</span>
+            </div>
+        </div>
+
+        <!-- Protection Toggle Section -->
+        <div class="protection-section">
+            <span class="protection-label">Protection</span>
+            <label class="switch">
+                <input type="checkbox" id="protection-toggle" checked>
+                <span class="slider"></span>
+            </label>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">50</div>
+                <div class="stat-label">Monitored</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">12</div>
+                <div class="stat-label">Threats</div>
+            </div>
+            <div class="stat-card status-card safe">
+                <div class="stat-number">SAFE</div>
+                <div class="stat-label">Status</div>
+            </div>
+        </div>
+
+        <!-- Recent Alerts Section -->
+        <div class="alerts-section">
+            <div class="alerts-header">
+                <h3>Recent Alerts</h3>
+                <span class="last-scan">Last scan activity</span>
+            </div>
+            <div id="recent-alerts-list" class="alerts-list">
+                <div class="alert-item alert-malicious">
+                    <div class="alert-badge">🚨 MALICIOUS</div>
+                    <div class="alert-url">http://www.testingmcafeesites.com/testcat_be.html</div>
+                    <div class="alert-footer">
+                        <span class="alert-risk">Risk: 46.7%</span>
+                        <span class="alert-time">Just now</span>
+                    </div>
+                </div>
+                <div class="alert-item alert-malicious">
+                    <div class="alert-badge">🚨 MALICIOUS</div>
+                    <div class="alert-url">http://www.testingmcafeesites.com/testcat_be.html</div>
+                    <div class="alert-footer">
+                        <span class="alert-risk">Risk: 46.7%</span>
+                        <span class="alert-time">27m ago</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button id="dashboard-button" class="btn-secondary">Open Dashboard</button>
+            <button id="scan-button" class="btn-primary">Scan Current Page</button>
+        </div>
+    </div>
+
+    <script src="popup_realtime.js"></script>
+</body>
+</html>

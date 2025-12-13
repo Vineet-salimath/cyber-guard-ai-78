@@ -282,7 +282,6 @@ const RealTimeDashboard = () => {
                 <div className="text-5xl font-bold text-blue-900">{stats.total}</div>
                 <Shield className="h-12 w-12 text-blue-500 opacity-50" />
               </div>
-              <p className="text-xs text-blue-600 mt-1">Real-time count</p>
             </CardContent>
           </Card>
           
@@ -295,7 +294,6 @@ const RealTimeDashboard = () => {
                 <div className="text-5xl font-bold text-green-900">{stats.benign}</div>
                 <Shield className="h-12 w-12 text-green-500 opacity-50" />
               </div>
-              <p className="text-xs text-green-600 mt-1">{detectionRate}% safe rate</p>
             </CardContent>
           </Card>
           
@@ -480,7 +478,6 @@ const RealTimeDashboard = () => {
                   <div>
                     <Shield className="h-12 w-12 mx-auto mb-2 opacity-50" />
                     <p className="font-medium">No Threats Detected</p>
-                    <p className="text-xs mt-1">All scans are clean! 🎉</p>
                   </div>
                 </div>
               )}
@@ -595,11 +592,8 @@ const RealTimeDashboard = () => {
       <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
         <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl font-bold flex items-center justify-between">
+            <DialogTitle className="text-xl font-bold">
               Threat Report
-              <Button variant="ghost" size="sm" onClick={() => setShowDetailModal(false)}>
-                ✕
-              </Button>
             </DialogTitle>
             <DialogDescription className="text-gray-500">
               Detailed analysis of the scanned website
@@ -643,10 +637,6 @@ const RealTimeDashboard = () => {
                     {new Date(selectedScan.timestamp).toLocaleString()}
                   </div>
                 </div>
-                <div>
-                  <label className="text-sm font-semibold text-gray-600">AI Model</label>
-                  <div className="text-sm text-gray-800 mt-1">MalwareSnipper v2.3.1</div>
-                </div>
               </div>
 
               {/* RISK SUMMARY BOX */}
@@ -662,65 +652,6 @@ const RealTimeDashboard = () => {
                 </p>
               </div>
 
-              {/* MULTI-LAYER ANALYSIS RESULTS */}
-              {selectedScan.layer_scores && (
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 mb-3 block">Security Analysis Layers</label>
-                  <div className="space-y-2">
-                    {Object.entries(selectedScan.layer_scores).map(([layer, score]) => (
-                      <div key={layer} className="flex items-center gap-3">
-                        <div className="w-48 text-sm text-gray-700 capitalize">
-                          {layer.replace(/_/g, ' ')}
-                        </div>
-                        <div className="flex-1 bg-gray-200 rounded-full h-2">
-                          <div 
-                            className={`h-2 rounded-full ${
-                              score < 30 ? 'bg-green-500' : 
-                              score < 70 ? 'bg-yellow-500' : 
-                              'bg-red-500'
-                            }`}
-                            style={{ width: `${score}%` }}
-                          />
-                        </div>
-                        <div className="w-16 text-sm text-right font-semibold text-gray-800">
-                          {typeof score === 'number' ? score.toFixed(0) : score}%
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* FINDINGS SUMMARY */}
-              {selectedScan.summary && (
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="bg-red-50 border border-red-200 p-3 rounded text-center">
-                    <div className="text-2xl font-bold text-red-600">
-                      {selectedScan.summary.critical_findings || 0}
-                    </div>
-                    <div className="text-xs text-red-600 mt-1">Critical</div>
-                  </div>
-                  <div className="bg-yellow-50 border border-yellow-200 p-3 rounded text-center">
-                    <div className="text-2xl font-bold text-yellow-600">
-                      {selectedScan.summary.warning_findings || 0}
-                    </div>
-                    <div className="text-xs text-yellow-600 mt-1">Warnings</div>
-                  </div>
-                  <div className="bg-blue-50 border border-blue-200 p-3 rounded text-center">
-                    <div className="text-2xl font-bold text-blue-600">
-                      {selectedScan.summary.info_findings || 0}
-                    </div>
-                    <div className="text-xs text-blue-600 mt-1">Info</div>
-                  </div>
-                  <div className="bg-gray-50 border border-gray-200 p-3 rounded text-center">
-                    <div className="text-2xl font-bold text-gray-600">
-                      {selectedScan.summary.total_findings || 0}
-                    </div>
-                    <div className="text-xs text-gray-600 mt-1">Total</div>
-                  </div>
-                </div>
-              )}
-
               {/* THREATS DETECTED */}
               {selectedScan.summary?.threats_detected && selectedScan.summary.threats_detected.length > 0 && (
                 <div>
@@ -730,21 +661,6 @@ const RealTimeDashboard = () => {
                       <div key={idx} className="flex items-start gap-2 bg-red-50 border border-red-200 p-2 rounded text-sm text-red-700">
                         <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
                         {threat}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* VULNERABILITIES */}
-              {selectedScan.summary?.vulnerabilities_found && selectedScan.summary.vulnerabilities_found.length > 0 && (
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 mb-2 block">Security Vulnerabilities</label>
-                  <div className="space-y-1">
-                    {selectedScan.summary.vulnerabilities_found.slice(0, 5).map((vuln, idx) => (
-                      <div key={idx} className="flex items-start gap-2 bg-yellow-50 border border-yellow-200 p-2 rounded text-sm text-yellow-700">
-                        <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                        {vuln}
                       </div>
                     ))}
                   </div>

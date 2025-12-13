@@ -1,271 +1,343 @@
-import { useState, useEffect, useRef } from "react";
-import DashboardLayout from "@/components/DashboardLayout";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
-import { ExternalLink, RefreshCw, Rss } from "lucide-react";
+import { useState, useEffect } from 'react';
+import { Moon, Sun, RefreshCw, ExternalLink } from 'lucide-react';
+import DashboardLayout from '@/components/DashboardLayout';
 
-type NewsArticle = {
+type Article = {
   title: string;
-  link: string;
-  pubDate: string;
-  contentSnippet: string;
+  description: string;
+  url: string;
+  image: string;
   source: string;
+  publishedAt: string;
+  author: string;
+};
+
+type CategoryCount = {
+  [key: string]: number;
 };
 
 const Blog = () => {
-  const [articles, setArticles] = useState<NewsArticle[] | null>(null);
+  const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [isCached, setIsCached] = useState(false);
-  const [isLive, setIsLive] = useState(false);
-  const eventSourceRef = useRef<EventSource | null>(null);
-  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const [activeCategory, setActiveCategory] = useState('cybersecurity');
+  const [categories, setCategories] = useState<string[]>([]);
+  const [darkMode, setDarkMode] = useState(false);
+  const [refreshCountdown, setRefreshCountdown] = useState(300); // 5 minutes
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  const BACKEND_API = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+  const API_BASE = 'http://localhost:5000/api';
 
-  // Fetch live news immediately
-  const fetchLiveNews = async () => {
+  const CATEGORY_LABELS: CategoryCount = {
+    'cybersecurity': 'Cybersecurity',
+    'data-breach': 'Data Breach',
+    'ransomware': 'Ransomware',
+    'vulnerability': 'Vulnerability',
+    'compliance': 'Compliance',
+    'fraud': 'Fraud',
+    'security-tools': 'Security Tools',
+    'cloud-security': 'Cloud Security'
+  };
+
+  // Load dark mode preference
+  useEffect(() => {
+    const isDark = localStorage.getItem('darkMode') === 'true';
+    setDarkMode(isDark);
+  }, []);
+
+  // Toggle dark mode
+  const toggleDarkMode = () => {
+    const newDarkMode = !darkMode;
+    setDarkMode(newDarkMode);
+    localStorage.setItem('darkMode', String(newDarkMode));
+  };
+
+  // Fetch categories on mount
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  // Fetch articles when category changes
+  useEffect(() => {
+    fetchArticles(activeCategory);
+  }, [activeCategory]);
+
+  // Auto-refresh countdown
+  useEffect(() => {
+    if (refreshCountdown <= 0) {
+      fetchArticles(activeCategory);
+      setRefreshCountdown(300);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setRefreshCountdown(refreshCountdown - 1);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [refreshCountdown, activeCategory]);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/news/categories`);
+      const data = await response.json();
+      if (data.success) {
+        setCategories(data.categories);
+      }
+    } catch (err) {
+      console.error('Failed to fetch categories:', err);
+    }
+  };
+
+  const fetchArticles = async (category: string, forceRefresh = true) => {
     setLoading(true);
     setError(null);
-    setIsLive(true);
-    
+
     try {
-      const timestamp = Date.now();
-      const res = await fetch(`${BACKEND_API}/api/news/live?t=${timestamp}`);
-      
-      if (!res.ok) throw new Error(`Failed to fetch news: ${res.status}`);
-      
-      const data = await res.json();
-      
-      if (data.success && data.articles) {
-        setArticles(data.articles);
-        setLastUpdated(new Date());
-        setIsCached(false);
+      // Always request fresh data from NewsAPI and RSS feeds
+      // Add timestamp parameter to bypass browser cache
+      const timestamp = new Date().getTime();
+      const url = `${API_BASE}/news/${category}?refresh=true&t=${timestamp}`;
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (data.success) {
+        setArticles(data.articles || []);
+        if (data.articles && data.articles.length > 0) {
+          console.log(`[OK] Loaded ${data.articles.length} fresh articles for ${category} (${data.sources || 'Unknown sources'})`);
+        } else {
+          setError('No articles found. Try selecting a different category or checking your connection.');
+        }
       } else {
-        throw new Error(data.error || "Failed to load articles");
+        setError(data.error || 'Failed to load articles');
+        setArticles([]);
       }
-    } catch (err: any) {
-      console.error("Error fetching live news:", err);
-      setError(err?.message || "Unable to load news");
-      setArticles(null);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to fetch articles';
+      setError(`Error: ${errorMsg}. Make sure backend is running on port 5000.`);
+      setArticles([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Connect to SSE stream for automatic updates
-  const connectToSSEStream = () => {
-    try {
-      // Close existing connection if any
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-      }
-
-      console.log("🔴 Connecting to live news SSE stream...");
-      eventSourceRef.current = new EventSource(`${BACKEND_API}/api/news/stream`);
-
-      eventSourceRef.current.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.articles) {
-            setArticles(data.articles);
-            setLastUpdated(new Date());
-            setIsLive(true);
-            console.log(`🔴 SSE Update: ${data.articles.length} articles received`);
-          }
-        } catch (e) {
-          console.error("Error parsing SSE data:", e);
-        }
-      };
-
-      eventSourceRef.current.onerror = (error) => {
-        console.error("SSE Connection error:", error);
-        if (eventSourceRef.current) {
-          eventSourceRef.current.close();
-          eventSourceRef.current = null;
-        }
-        // Retry connection after 5 seconds
-        setTimeout(connectToSSEStream, 5000);
-      };
-    } catch (err) {
-      console.error("Failed to connect to SSE stream:", err);
-      // Retry after 5 seconds
-      setTimeout(connectToSSEStream, 5000);
-    }
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchArticles(activeCategory, true);
+    setRefreshCountdown(300);
+    setIsRefreshing(false);
   };
 
-  useEffect(() => {
-    // Fetch live news immediately on load
-    fetchLiveNews();
-    
-    // Connect to SSE stream for automatic updates every 30 minutes
-    connectToSSEStream();
-    
-    return () => {
-      // Cleanup on unmount
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-      }
-      if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current);
-      }
-    };
-  }, []);
-
-  const getSourceColor = (source: string): string => {
-    const sourceColors: { [key: string]: string } = {
-      "Krebs on Security": "bg-blue-100 text-blue-800",
-      "BleepingComputer": "bg-purple-100 text-purple-800",
-      "The Hacker News": "bg-red-100 text-red-800",
-      "Dark Reading": "bg-orange-100 text-orange-800",
-    };
-    return sourceColors[source] || "bg-gray-100 text-gray-800";
-  };
-
-  const formatTime = (pubDate: string): string => {
+  const formatDate = (dateString: string) => {
     try {
-      const date = new Date(pubDate);
-      const now = new Date();
-      const diffMs = now.getTime() - date.getTime();
-      const diffMins = Math.floor(diffMs / (1000 * 60));
-      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-      if (diffMins < 1) return "Just now";
-      if (diffMins < 60) return `${diffMins}m ago`;
-      if (diffHours < 24) return `${diffHours}h ago`;
-      if (diffDays < 7) return `${diffDays}d ago`;
-
-      return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      return new Date(dateString).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
     } catch {
-      return new Date(pubDate).toLocaleDateString();
+      return dateString;
     }
   };
+
+  const formatCountdown = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const contentClass = darkMode ? 'dark bg-gray-900 text-white' : 'bg-gray-50 text-gray-900';
+  const headerClass = darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200';
+  const cardClass = darkMode ? 'bg-gray-800' : 'bg-white';
+  const textMutedClass = darkMode ? 'text-gray-400' : 'text-gray-600';
+  const buttonHoverClass = darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100';
 
   return (
     <DashboardLayout>
-      <div className="p-6 space-y-6">
+      <div className={`min-h-screen ${contentClass}`}>
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <Rss className="w-8 h-8 text-primary" />
-              <h1 className="text-3xl font-bold tracking-tight">Cybersecurity Blogs</h1>
-            </div>
-            <p className="text-muted-foreground">
-              Latest news and insights from the cybersecurity community
-            </p>
-            {lastUpdated && (
-              <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                <p>Last updated: {lastUpdated.toLocaleTimeString()}</p>
+        <div className={`border-b ${headerClass}`}>
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h1 className="text-3xl font-bold">Cybersecurity News</h1>
+                <p className={`text-sm ${textMutedClass}`}>
+                  Latest news from the cybersecurity world
+                </p>
               </div>
-            )}
+
+              {/* Header Controls */}
+              <div className="flex items-center gap-4">
+                {/* Countdown Timer */}
+                <div className={`px-4 py-2 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <p className={`text-xs ${textMutedClass}`}>
+                    Auto-refresh in
+                  </p>
+                  <p className="font-mono font-bold">{formatCountdown(refreshCountdown)}</p>
+                </div>
+
+                {/* Refresh Button */}
+                <button
+                  onClick={handleManualRefresh}
+                  disabled={isRefreshing || loading}
+                  className={`p-2 rounded-lg transition-colors ${buttonHoverClass} disabled:opacity-50`}
+                  title="Manually refresh articles"
+                >
+                  <RefreshCw
+                    size={20}
+                    className={isRefreshing ? 'animate-spin' : ''}
+                  />
+                </button>
+
+                {/* Dark Mode Toggle */}
+                <button
+                  onClick={toggleDarkMode}
+                  className={`p-2 rounded-lg transition-colors ${buttonHoverClass}`}
+                  title="Toggle dark mode"
+                >
+                  {darkMode ? <Sun size={20} /> : <Moon size={20} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Category Filters */}
+            <div className="flex flex-wrap gap-2">
+              {categories.length > 0 ? (
+                categories.map((category) => (
+                  <button
+                    key={category}
+                    onClick={() => setActiveCategory(category)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      activeCategory === category
+                        ? 'bg-blue-600 text-white'
+                        : darkMode
+                        ? 'bg-gray-700 hover:bg-gray-600'
+                        : 'bg-gray-200 hover:bg-gray-300'
+                    }`}
+                  >
+                    {CATEGORY_LABELS[category] || category}
+                  </button>
+                ))
+              ) : (
+                <p className={`text-sm ${textMutedClass}`}>
+                  Loading categories...
+                </p>
+              )}
+            </div>
           </div>
-          <Button onClick={() => fetchLiveNews()} disabled={loading} variant="outline" size="sm">
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </Button>
         </div>
 
-        {/* Article Count */}
-        {articles && (
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">
-              <span className={`font-semibold ${isLive ? 'text-red-600 animate-pulse' : 'text-green-600'}`}>
-                {isLive ? '🔴 LIVE STREAMING' : '✅ LIVE'}
-              </span> - Showing {articles.length} fresh articles from real-time cybersecurity sources
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Auto-updates every 30 minutes via server-sent events (SSE)
-            </p>
-          </div>
-        )}
+        {/* Main Content */}
+        <main className="p-6">
+          {/* Error Message */}
+          {error && (
+            <div className={`mb-6 p-4 rounded-lg ${
+              darkMode
+                ? 'bg-red-900 text-red-100'
+                : 'bg-red-50 text-red-700'
+            }`}>
+              <p className="font-semibold">Error loading articles</p>
+              <p className="text-sm mt-1">{error}</p>
+            </div>
+          )}
 
-        {/* Error State */}
-        {error && (
-          <Card className="border-destructive">
-            <CardContent className="pt-6">
-              <div className="text-center text-destructive">
-                <p className="font-semibold">Failed to load news</p>
-                <p className="text-sm mt-1">{error}</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+          {/* Loading State */}
+          {loading && articles.length === 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div
+                  key={i}
+                  className={`rounded-lg p-4 ${cardClass}`}
+                >
+                  <div className={`h-48 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} mb-4`}></div>
+                  <div className={`h-4 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} mb-2`}></div>
+                  <div className={`h-4 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-200'} w-3/4`}></div>
+                </div>
+              ))}
+            </div>
+          ) : articles.length > 0 ? (
+            /* Articles Grid */
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {articles.map((article, index) => (
+                <article
+                  key={index}
+                  className={`rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow ${cardClass}`}
+                >
+                  {/* Article Image */}
+                  {article.image && (
+                    <img
+                      src={article.image}
+                      alt={article.title}
+                      className="w-full h-48 object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  )}
 
-        {/* Loading State */}
-        {loading && !articles && (
-          <div className="space-y-4">
-            {[1, 2, 3, 4].map((i) => (
-              <Card key={i}>
-                <CardContent className="pt-6">
-                  <Skeleton className="h-6 w-3/4 mb-3" />
-                  <Skeleton className="h-4 w-1/2 mb-3" />
-                  <Skeleton className="h-12 w-full" />
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {/* Articles List */}
-        {!loading && !error && articles && articles.length > 0 && (
-          <div className="space-y-4">
-            {articles.map((article, idx) => (
-              <Card key={idx} className="hover:shadow-md transition-shadow">
-                <CardContent className="pt-6">
-                  <div className="space-y-3">
-                    {/* Title and Source Badge */}
-                    <div className="flex items-start justify-between gap-3">
-                      <h3 className="text-lg font-semibold leading-tight flex-1 line-clamp-2">
-                        {article.title}
-                      </h3>
-                      <Badge className={`whitespace-nowrap text-xs flex-shrink-0 ${getSourceColor(article.source)}`}>
+                  {/* Article Content */}
+                  <div className="p-4">
+                    {/* Source Badge */}
+                    <div className="mb-2">
+                      <span className={`inline-block px-2 py-1 text-xs rounded ${
+                        darkMode
+                          ? 'bg-blue-900 text-blue-300'
+                          : 'bg-blue-100 text-blue-800'
+                      }`}>
                         {article.source}
-                      </Badge>
+                      </span>
                     </div>
 
-                    {/* Meta Information */}
-                    <p className="text-xs text-muted-foreground">
-                      {formatTime(article.pubDate)}
+                    {/* Title */}
+                    <h3 className="font-bold text-lg mb-2 line-clamp-2">
+                      {article.title}
+                    </h3>
+
+                    {/* Description */}
+                    <p className={`text-sm mb-4 line-clamp-3 ${textMutedClass}`}>
+                      {article.description || 'No description available'}
                     </p>
 
-                    {/* Content Snippet */}
-                    <p className="text-sm text-muted-foreground line-clamp-3">
-                      {article.contentSnippet}
-                    </p>
+                    {/* Metadata */}
+                    <div className={`text-xs mb-4 ${textMutedClass}`}>
+                      <p>📅 {formatDate(article.publishedAt)}</p>
+                      {article.author && <p>✍️ {article.author}</p>}
+                    </div>
 
-                    {/* Read More Link */}
+                    {/* Read More Button */}
                     <a
-                      href={article.link}
+                      href={article.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                        darkMode
+                          ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                          : 'bg-blue-600 hover:bg-blue-700 text-white'
+                      }`}
                     >
                       Read More
-                      <ExternalLink className="w-3 h-3" />
+                      <ExternalLink size={16} />
                     </a>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {/* Empty State */}
-        {!loading && !error && articles && articles.length === 0 && (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center text-muted-foreground">
-                <p className="font-semibold">No articles found</p>
-                <p className="text-sm mt-1">Try refreshing or check back later</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+                </article>
+              ))}
+            </div>
+          ) : (
+            /* No Articles */
+            <div className={`text-center py-12 rounded-lg ${
+              darkMode ? 'bg-gray-800' : 'bg-gray-100'
+            }`}>
+              <p className={`text-lg font-medium ${
+                darkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
+                No articles available
+              </p>
+              <p className={`text-sm mt-2 ${textMutedClass}`}>
+                Try refreshing or selecting a different category
+              </p>
+            </div>
+          )}
+        </main>
       </div>
     </DashboardLayout>
   );

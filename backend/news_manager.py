@@ -1,423 +1,722 @@
 """
-CyberNews Module - Real-Time Cybersecurity News System
-Integrates with NewsAPI and RSS feeds for live threat intelligence
+News Manager Service - Fetches and caches cybersecurity news from NewsAPI and RSS feeds
 """
-
-import requests
-import sqlite3
-from datetime import datetime, timedelta
-import feedparser
-from typing import List, Dict, Optional
+import os
 import json
+import sqlite3
+import requests
+import random
+import feedparser
+from datetime import datetime, timedelta
+from typing import List, Dict, Any
+import logging
 
-class CyberNewsManager:
-    """Manage real-time cybersecurity news from multiple sources"""
-    
-    # NewsAPI Configuration
-    NEWSAPI_KEY = "273e03fcc564455b994ea18a8f1a4bb7"  # NewsAPI Key
-    NEWSAPI_URL = "https://newsapi.org/v2/everything"
-    
-    # Cybersecurity Keywords
-    CYBER_KEYWORDS = [
-        'cybersecurity', 'malware', 'ransomware', 'data breach',
-        'vulnerability', 'zero-day', 'hacking', 'cyber attack',
-        'phishing', 'DDoS', 'exploit', 'CVE', 'security patch',
-        'threat', 'APT', 'botnet', 'cryptojacking', 'supply chain attack'
-    ]
-    
-    # RSS Feeds
-    RSS_FEEDS = {
-        'krebs': 'https://krebsonsecurity.com/feed/',
-        'bleeping': 'https://www.bleepingcomputer.com/feed/',
-        'hackernews': 'https://thehackernews.com/feeds/posts/default',
-        'darkreading': 'https://www.darkreading.com/rss.xml',
-        'securityweek': 'https://www.securityweek.com/feed/',
-    }
-    
-    DB_PATH = 'cybernews.db'
-    
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# NewsAPI configuration
+NEWS_API_KEY = os.getenv('NEWS_API_KEY', '')
+NEWS_API_BASE_URL = 'https://newsapi.org/v2/everything'
+
+# Database configuration
+DB_PATH = os.path.join(os.path.dirname(__file__), 'data', 'cache.db')
+CACHE_TTL = 3600  # 1 hour in seconds
+
+# Premium cybersecurity RSS feeds (15 sources)
+PREMIUM_RSS_FEEDS = [
+    'https://feeds.bleepingcomputer.com/feed/',  # BleepingComputer
+    'https://www.darkreading.com/rss.xml',  # Dark Reading
+    'https://feeds.securityweek.com/securityweek/home',  # SecurityWeek
+    'https://www.infosecurity-magazine.com/rss.xml',  # Infosecurity Magazine
+    'https://feeds.arstechnica.com/arstechnica/security',  # Ars Technica
+    'https://www.helpnetsecurity.com/feed/',  # Help Net Security
+    'https://feeds.reuters.com/reuters/businessNews',  # Reuters
+    'https://feeds.techcrunch.com/techcrunch/',  # TechCrunch
+    'https://feeds.wired.com/feed/wired/index.xml',  # Wired
+    'https://www.theregister.co.uk/security/headlines.atom',  # The Register
+    'https://feeds.zdnet.com/zdnet/security',  # ZDNet
+    'https://feeds.thehackernews.com/feed',  # The Hacker News
+    'https://krebsonsecurity.com/feed/',  # Krebs on Security
+    'https://securityintelligence.com/feed/',  # Security Intelligence
+    'https://feeds.fortinet.com/blog/business-and-technology',  # Fortinet
+]
+
+# Multiple query variations for each category (20 queries per category)
+QUERY_VARIATIONS = {
+    'cybersecurity': [
+        'cybersecurity',
+        'cyber security',
+        'cyber attack',
+        'cyber threat',
+        'cybersecurity news',
+        'cyber crime',
+        'digital security',
+        'information security',
+        'IT security',
+        'network security',
+        'data security',
+        'endpoint security',
+        'cloud security',
+        'application security',
+        'security breach',
+        'security vulnerability',
+        'cyber defense',
+        'threat intelligence',
+        'incident response',
+        'security awareness',
+    ],
+    'data-breach': [
+        'data breach',
+        'data breaches',
+        'data leak',
+        'data leakage',
+        'personal data breach',
+        'customer data breach',
+        'database breach',
+        'security breach',
+        'information breach',
+        'unauthorized access',
+        'data compromise',
+        'data exposure',
+        'stolen data',
+        'hacked database',
+        'data theft',
+        'privacy breach',
+        'confidential data leak',
+        'sensitive data breach',
+        'records stolen',
+        'credentials leaked',
+    ],
+    'ransomware': [
+        'ransomware',
+        'ransomware attack',
+        'ransomware virus',
+        'ransomware malware',
+        'crypto locker',
+        'ransomware gang',
+        'ransomware threat',
+        'ransomware outbreak',
+        'ransomware incident',
+        'file encryption attack',
+        'extortion malware',
+        'ransomware variant',
+        'ransomware campaign',
+        'ransomware payment',
+        'ransomware decryption',
+        'wannacry',
+        'petya',
+        'notpetya',
+        'lockbit',
+        'conti ransomware',
+    ],
+    'vulnerability': [
+        'vulnerability',
+        'CVE',
+        'zero day',
+        'zero-day',
+        'security patch',
+        'software vulnerability',
+        'security flaw',
+        'exploit',
+        'bug bounty',
+        'vulnerability disclosure',
+        'critical vulnerability',
+        'security update',
+        'unpatched vulnerability',
+        'software bug',
+        'security hole',
+        'remote code execution',
+        'SQL injection',
+        'cross-site scripting',
+        'buffer overflow',
+        'privilege escalation',
+    ],
+    'compliance': [
+        'GDPR',
+        'CCPA',
+        'compliance',
+        'regulation',
+        'data protection',
+        'regulatory',
+        'HIPAA',
+        'PCI DSS',
+        'compliance requirement',
+        'regulatory compliance',
+        'privacy regulation',
+        'data privacy law',
+        'privacy policy',
+        'compliance audit',
+        'compliance violation',
+        'data residency',
+        'right to be forgotten',
+        'data portability',
+        'privacy impact assessment',
+        'compliance framework',
+    ],
+    'fraud': [
+        'fraud',
+        'scam',
+        'phishing',
+        'phishing attack',
+        'email scam',
+        'credential theft',
+        'identity theft',
+        'financial fraud',
+        'payment fraud',
+        'account takeover',
+        'social engineering',
+        'spear phishing',
+        'whaling',
+        'vishing',
+        'smishing',
+        'ransomware scam',
+        'malware scam',
+        'fake security alert',
+        'romance scam',
+        'advance fee fraud',
+    ],
+    'security-tools': [
+        'security tools',
+        'antivirus',
+        'firewall',
+        'VPN',
+        'password manager',
+        'security software',
+        'endpoint protection',
+        'intrusion detection',
+        'SIEM',
+        'vulnerability scanner',
+        'penetration testing',
+        'security automation',
+        'threat detection',
+        'security monitoring',
+        'SOC tools',
+        'identity verification',
+        'multi-factor authentication',
+        'privileged access management',
+        'encryption software',
+        'security orchestration',
+    ],
+    'cloud-security': [
+        'cloud security',
+        'AWS security',
+        'Azure security',
+        'Google Cloud security',
+        'cloud infrastructure',
+        'cloud compliance',
+        'cloud data protection',
+        'cloud misconfiguration',
+        'cloud access control',
+        'cloud encryption',
+        'cloud security posture',
+        'cloud threat',
+        'cloud vulnerability',
+        'cloud identity',
+        'cloud isolation',
+        'serverless security',
+        'container security',
+        'kubernetes security',
+        'cloud backup',
+        'cloud disaster recovery',
+    ],
+}
+
+class NewsManager:
     def __init__(self):
-        """Initialize database"""
-        self.init_database()
-    
-    def init_database(self):
-        """Create SQLite database for news caching"""
+        """Initialize news manager and database"""
+        self.api_key = NEWS_API_KEY
+        if not self.api_key:
+            logger.warning("NEWS_API_KEY not set. RSS feeds will be used as primary source.")
+        self._init_database()
+
+    def _init_database(self):
+        """Initialize SQLite database for caching"""
         try:
-            conn = sqlite3.connect(self.DB_PATH)
-            c = conn.cursor()
-            c.execute('''
-                CREATE TABLE IF NOT EXISTS news_articles (
+            os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS news_cache (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    title TEXT NOT NULL UNIQUE,
-                    description TEXT,
-                    link TEXT UNIQUE,
-                    source TEXT,
-                    published TEXT,
-                    category TEXT,
-                    image_url TEXT,
-                    fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    priority TEXT DEFAULT 'medium'
+                    category TEXT NOT NULL,
+                    articles TEXT NOT NULL,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    ttl INTEGER DEFAULT 3600
                 )
             ''')
-            
-            c.execute('''
-                CREATE TABLE IF NOT EXISTS news_categories (
-                    id INTEGER PRIMARY KEY,
-                    name TEXT UNIQUE,
-                    keyword TEXT,
-                    priority TEXT
-                )
-            ''')
-            
-            # Insert categories
-            categories = [
-                ('malware', 'malware|ransomware|trojan|virus|spyware|worm', 'high'),
-                ('breach', 'breach|leak|hacked|stolen|compromised|data loss', 'high'),
-                ('vulnerability', 'vulnerability|CVE|patch|exploit|zero-day|n-day', 'high'),
-                ('threat', 'threat|attack|phishing|DDoS|APT|botnet', 'high'),
-                ('supply-chain', 'supply chain|SolarWinds|Kaseya|Okta', 'medium'),
-                ('privacy', 'privacy|GDPR|CCPA|data protection', 'medium'),
-                ('compliance', 'compliance|regulation|security standard', 'low'),
-            ]
-            
-            for cat_name, keywords, priority in categories:
-                c.execute('''
-                    INSERT OR IGNORE INTO news_categories (name, keyword, priority)
-                    VALUES (?, ?, ?)
-                ''', (cat_name, keywords, priority))
-            
             conn.commit()
             conn.close()
-            print("✅ News database initialized")
-            return True
-            
+            logger.info(f"Database initialized at {DB_PATH}")
         except Exception as e:
-            print(f"❌ Database init error: {e}")
-            return False
-    
-    def categorize_article(self, title: str, description: str = "") -> str:
-        """Categorize article based on content"""
-        content = (title + " " + description).lower()
-        
-        # Check high priority categories first
-        if any(word in content for word in ['malware', 'ransomware', 'trojan', 'virus', 'spyware', 'worm']):
-            return 'malware'
-        elif any(word in content for word in ['breach', 'leak', 'hacked', 'stolen', 'compromised']):
-            return 'breach'
-        elif any(word in content for word in ['vulnerability', 'cve', 'patch', 'exploit', 'zero-day']):
-            return 'vulnerability'
-        elif any(word in content for word in ['ddos', 'attack', 'threat', 'phishing', 'apt']):
-            return 'threat'
-        elif any(word in content for word in ['supply chain', 'solarwinds', 'kaseya', 'okta']):
-            return 'supply-chain'
-        else:
-            return 'general'
-    
-    def fetch_from_newsapi(self, limit: int = 30) -> List[Dict]:
-        """Fetch news from NewsAPI with STRONG cybersecurity focus"""
-        if self.NEWSAPI_KEY == "YOUR_NEWSAPI_KEY_HERE":
-            print("⚠️ NewsAPI key not configured, skipping NewsAPI source")
-            return []
-        
-        articles = []
+            logger.error(f"Database initialization error: {e}")
+
+    def get_categories(self) -> List[str]:
+        """Get list of available categories"""
+        return list(QUERY_VARIATIONS.keys())
+
+    def _get_cached_articles(self, category: str) -> Dict[str, Any]:
+        """Get articles from cache if still valid"""
         try:
-            # Use STRONG cybersecurity keywords to filter out general news
-            # Focus on actual threat terms
-            specific_queries = [
-                '(malware OR ransomware OR trojan) AND (attack OR threat)',
-                '(vulnerability OR CVE OR zero-day OR exploit) AND security',
-                '(data breach OR hacked OR compromised) AND (organization OR company)',
-                '(phishing OR DDoS OR botnet) AND cybersecurity',
-                'ransomware AND (payment OR encrypted OR attack)'
-            ]
-            
-            today = datetime.now().strftime('%Y-%m-%d')
-            yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-            
-            for search_query in specific_queries:
-                params = {
-                    'q': search_query,
-                    'from': yesterday,
-                    'to': today,
-                    'sortBy': 'publishedAt',
-                    'language': 'en',
-                    'pageSize': limit // 5,  # Divide limit across multiple queries
-                    'apiKey': self.NEWSAPI_KEY
-                }
-                
-                try:
-                    response = requests.get(self.NEWSAPI_URL, params=params, timeout=10)
-                    data = response.json()
-                    
-                    if data.get('status') == 'ok':
-                        for article in data.get('articles', []):
-                            try:
-                                title = article.get('title', '')
-                                description = article.get('description', '')
-                                
-                                # Skip non-cybersecurity articles
-                                if not any(kw.lower() in (title + " " + description).lower() 
-                                          for kw in self.CYBER_KEYWORDS):
-                                    continue
-                                
-                                category = self.categorize_article(title, description)
-                                
-                                news_item = {
-                                    'title': title,
-                                    'description': description[:300],
-                                    'link': article.get('url', ''),
-                                    'source': article.get('source', {}).get('name', 'NewsAPI'),
-                                    'published': article.get('publishedAt', datetime.now().isoformat()),
-                                    'category': category,
-                                    'image_url': article.get('urlToImage', ''),
-                                    'priority': 'high' if category in ['malware', 'breach', 'vulnerability'] else 'medium'
-                                }
-                                
-                                # Avoid duplicates
-                                if not any(a['link'] == news_item['link'] for a in articles):
-                                    articles.append(news_item)
-                                    self.save_to_db(news_item)
-                            except Exception as e:
-                                print(f"⚠️ Error processing article: {e}")
-                                continue
-                    else:
-                        print(f"⚠️ NewsAPI query failed: {data.get('message', 'Unknown error')}")
-                
-                except Exception as e:
-                    print(f"⚠️ Error fetching from query '{search_query}': {e}")
-                    continue
-            
-            # If we got fewer articles than requested, fetch general cybersecurity news
-            if len(articles) < limit:
-                params = {
-                    'q': 'cybersecurity OR security threat',
-                    'from': yesterday,
-                    'to': today,
-                    'sortBy': 'publishedAt',
-                    'language': 'en',
-                    'pageSize': limit - len(articles),
-                    'apiKey': self.NEWSAPI_KEY
-                }
-                
-                try:
-                    response = requests.get(self.NEWSAPI_URL, params=params, timeout=10)
-                    data = response.json()
-                    
-                    if data.get('status') == 'ok':
-                        for article in data.get('articles', []):
-                            if len(articles) >= limit:
-                                break
-                            
-                            try:
-                                category = self.categorize_article(
-                                    article.get('title', ''),
-                                    article.get('description', '')
-                                )
-                                
-                                news_item = {
-                                    'title': article.get('title', 'N/A'),
-                                    'description': article.get('description', '')[:300],
-                                    'link': article.get('url', ''),
-                                    'source': article.get('source', {}).get('name', 'NewsAPI'),
-                                    'published': article.get('publishedAt', datetime.now().isoformat()),
-                                    'category': category,
-                                    'image_url': article.get('urlToImage', ''),
-                                    'priority': 'high' if category in ['malware', 'breach'] else 'medium'
-                                }
-                                
-                                if not any(a['link'] == news_item['link'] for a in articles):
-                                    articles.append(news_item)
-                                    self.save_to_db(news_item)
-                            except Exception as e:
-                                print(f"⚠️ Error processing article: {e}")
-                                continue
-                except Exception as e:
-                    print(f"⚠️ Fallback query error: {e}")
-            
-            print(f"✅ Fetched {len(articles)} cybersecurity articles from NewsAPI")
-        
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute(
+                'SELECT articles, timestamp FROM news_cache WHERE category = ? ORDER BY timestamp DESC LIMIT 1',
+                (category,)
+            )
+            result = cursor.fetchone()
+            conn.close()
+
+            if result:
+                articles_json, timestamp = result
+                cached_time = datetime.fromisoformat(timestamp)
+                age = (datetime.now() - cached_time).total_seconds()
+
+                if age < CACHE_TTL:
+                    articles = json.loads(articles_json)
+                    return {
+                        'articles': articles,
+                        'cached': True,
+                        'timestamp': timestamp,
+                        'age_seconds': int(age)
+                    }
         except Exception as e:
-            print(f"❌ NewsAPI fetch error: {e}")
-        
-        return articles
-    
-    def fetch_from_rss(self, limit: int = 6) -> List[Dict]:
-        """Fetch news from RSS feeds"""
+            logger.error(f"Cache retrieval error for {category}: {e}")
+
+        return None
+
+    def _save_to_cache(self, category: str, articles: List[Dict]) -> bool:
+        """Save articles to cache"""
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            articles_json = json.dumps(articles)
+            cursor.execute(
+                'INSERT INTO news_cache (category, articles, ttl) VALUES (?, ?, ?)',
+                (category, articles_json, CACHE_TTL)
+            )
+            conn.commit()
+            conn.close()
+            logger.info(f"Saved {len(articles)} articles for {category} to cache")
+            return True
+        except Exception as e:
+            logger.error(f"Cache save error for {category}: {e}")
+            return False
+
+    def _fetch_from_newsapi(self, category: str) -> List[Dict[str, Any]]:
+        """Fetch articles from NewsAPI with randomized queries"""
+        if not self.api_key:
+            logger.warning("NewsAPI key not configured, skipping NewsAPI fetch")
+            return []
+
+        try:
+            # Get random query variation for this category
+            queries = QUERY_VARIATIONS.get(category, [category])
+            query = random.choice(queries)
+            
+            params = {
+                'q': query,
+                'sortBy': 'publishedAt',
+                'language': 'en',
+                'pageSize': 50,
+                'apiKey': self.api_key
+            }
+
+            response = requests.get(NEWS_API_BASE_URL, params=params, timeout=10)
+            response.raise_for_status()
+
+            data = response.json()
+            if data.get('status') != 'ok':
+                logger.error(f"NewsAPI error: {data.get('message', 'Unknown error')}")
+                return []
+
+            articles = []
+            for article in data.get('articles', []):
+                processed = {
+                    'title': article.get('title', ''),
+                    'description': article.get('description', ''),
+                    'url': article.get('url', ''),
+                    'image': article.get('urlToImage', ''),
+                    'source': article.get('source', {}).get('name', 'Unknown'),
+                    'publishedAt': article.get('publishedAt', ''),
+                    'author': article.get('author', ''),
+                    'content': article.get('content', '')
+                }
+                if processed['title'] and processed['url']:
+                    articles.append(processed)
+
+            logger.info(f"Fetched {len(articles)} articles from NewsAPI for '{query}'")
+            return articles
+
+        except requests.exceptions.Timeout:
+            logger.error(f"Timeout fetching from NewsAPI for {category}")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"NewsAPI request error for {category}: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error fetching from NewsAPI for {category}: {e}")
+
+        return []
+
+    def _fetch_from_rss_feeds(self, category: str) -> List[Dict[str, Any]]:
+        """Fetch articles from randomized premium RSS feeds"""
         articles = []
         
-        for feed_name, feed_url in self.RSS_FEEDS.items():
+        # Randomize feed order for variety
+        randomized_feeds = PREMIUM_RSS_FEEDS.copy()
+        random.shuffle(randomized_feeds)
+        
+        for feed_url in randomized_feeds:
             try:
-                print(f"  📡 Fetching from {feed_name}...")
-                feed = feedparser.parse(feed_url)
+                response = requests.get(feed_url, timeout=5)
+                response.raise_for_status()
                 
-                if not feed.entries:
-                    print(f"    ⚠️ No entries from {feed_name}")
-                    continue
+                feed = feedparser.parse(response.content)
                 
-                for entry in feed.entries[:limit]:
-                    try:
-                        category = self.categorize_article(
-                            entry.get('title', ''),
-                            entry.get('summary', '')
-                        )
-                        
-                        news_item = {
-                            'title': entry.get('title', 'N/A'),
-                            'description': entry.get('summary', '')[:300],
-                            'link': entry.get('link', ''),
-                            'source': feed_name.replace('_', ' ').title(),
-                            'published': entry.get('published', datetime.now().isoformat()),
-                            'category': category,
-                            'image_url': '',
-                            'priority': 'high' if category in ['malware', 'breach'] else 'medium'
+                for entry in feed.entries[:5]:  # Get 5 articles from each feed
+                    # Filter by category keywords
+                    title_lower = (entry.get('title', '') or '').lower()
+                    description_lower = (entry.get('summary', '') or '').lower()
+                    category_keywords = QUERY_VARIATIONS.get(category, [category])
+                    
+                    # Check if article matches category
+                    matches = any(keyword.lower() in title_lower or keyword.lower() in description_lower 
+                                 for keyword in category_keywords)
+                    
+                    if matches:
+                        article = {
+                            'title': entry.get('title', 'No Title')[:200],
+                            'description': entry.get('summary', '')[:500],
+                            'url': entry.get('link', ''),
+                            'image': entry.get('media_content', [{}])[0].get('url', '') if entry.get('media_content') else '',
+                            'source': feed.feed.get('title', 'Unknown Source'),
+                            'publishedAt': entry.get('published', datetime.now().isoformat()),
+                            'author': entry.get('author', ''),
+                            'content': entry.get('content', [{}])[0].get('value', '') if entry.get('content') else ''
                         }
-                        
-                        articles.append(news_item)
-                        self.save_to_db(news_item)
-                    except Exception as e:
-                        continue
-                
-                print(f"    ✅ Fetched {min(limit, len(feed.entries))} from {feed_name}")
-            
+                        if article['title'] and article['url']:
+                            articles.append(article)
+                            
             except Exception as e:
-                print(f"  ❌ Error fetching from {feed_name}: {e}")
+                logger.debug(f"Error fetching from RSS feed {feed_url}: {e}")
                 continue
         
+        logger.info(f"Fetched {len(articles)} articles from RSS feeds for {category}")
         return articles
-    
-    def save_to_db(self, article: Dict) -> bool:
-        """Save article to database"""
-        try:
-            conn = sqlite3.connect(self.DB_PATH, timeout=10.0)
-            c = conn.cursor()
-            c.execute('''
-                INSERT OR IGNORE INTO news_articles
-                (title, description, link, source, published, category, image_url, priority)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                article['title'],
-                article['description'],
-                article['link'],
-                article['source'],
-                article['published'],
-                article['category'],
-                article.get('image_url', ''),
-                article.get('priority', 'medium')
-            ))
-            conn.commit()
-            conn.close()
-            return True
-        except Exception as e:
-            print(f"⚠️ Database save error: {e}")
-            return False
-    
-    def get_latest_news(self, limit: int = 50) -> List[Dict]:
-        """Get latest news from database"""
-        try:
-            conn = sqlite3.connect(self.DB_PATH)
-            conn.row_factory = sqlite3.Row
-            c = conn.cursor()
-            
-            c.execute('''
-                SELECT * FROM news_articles
-                ORDER BY fetched_at DESC
-                LIMIT ?
-            ''', (limit,))
-            
-            rows = c.fetchall()
-            conn.close()
-            
-            articles = [dict(row) for row in rows]
-            return articles
-        except Exception as e:
-            print(f"❌ Database fetch error: {e}")
-            return []
-    
-    def get_by_category(self, category: str, limit: int = 30) -> List[Dict]:
-        """Get news by category"""
-        try:
-            conn = sqlite3.connect(self.DB_PATH)
-            conn.row_factory = sqlite3.Row
-            c = conn.cursor()
-            
-            c.execute('''
-                SELECT * FROM news_articles
-                WHERE category = ?
-                ORDER BY fetched_at DESC
-                LIMIT ?
-            ''', (category, limit))
-            
-            rows = c.fetchall()
-            conn.close()
-            
-            return [dict(row) for row in rows]
-        except Exception as e:
-            print(f"❌ Database fetch error: {e}")
-            return []
-    
-    def get_stats(self) -> Dict:
-        """Get statistics"""
-        try:
-            conn = sqlite3.connect(self.DB_PATH)
-            c = conn.cursor()
-            
-            c.execute('SELECT COUNT(*) FROM news_articles')
-            total = c.fetchone()[0]
-            
-            c.execute('''
-                SELECT category, COUNT(*) as count
-                FROM news_articles
-                GROUP BY category
-            ''')
-            
-            categories = dict(c.fetchall())
-            conn.close()
+
+    def get_articles(self, category: str, force_refresh: bool = True) -> Dict[str, Any]:
+        """Get articles for a category - ALWAYS FRESH from NewsAPI and RSS feeds"""
+        if category not in QUERY_VARIATIONS:
+            return {
+                'error': f'Unknown category: {category}',
+                'articles': [],
+                'cached': False,
+                'success': False
+            }
+
+        # ALWAYS fetch fresh articles (no cache first)
+        all_articles = []
+        
+        # Fetch from NewsAPI
+        newsapi_articles = self._fetch_from_newsapi(category)
+        all_articles.extend(newsapi_articles)
+        
+        # Fetch from RSS feeds
+        rss_articles = self._fetch_from_rss_feeds(category)
+        all_articles.extend(rss_articles)
+        
+        # Remove duplicates by URL
+        seen_urls = set()
+        unique_articles = []
+        for article in all_articles:
+            if article['url'] and article['url'] not in seen_urls:
+                seen_urls.add(article['url'])
+                unique_articles.append(article)
+        
+        # Randomize final result for variety on each refresh
+        random.shuffle(unique_articles)
+        final_articles = unique_articles[:50]  # Return top 50 randomized articles
+
+        # Save to cache for fallback only
+        if final_articles:
+            self._save_to_cache(category, final_articles)
+            return {
+                'articles': final_articles,
+                'cached': False,
+                'timestamp': datetime.now().isoformat(),
+                'age_seconds': 0,
+                'category': category,
+                'success': True,
+                'total_articles': len(final_articles),
+                'sources': f"NewsAPI ({len(newsapi_articles)}) + RSS ({len(rss_articles)})"
+            }
+        else:
+            # Fallback to cache if fresh fetch fails
+            logger.warning(f"Fresh fetch returned no articles for {category}, trying cache fallback")
+            cached = self._get_cached_articles(category)
+            if cached:
+                return {
+                    **cached,
+                    'error': 'Using cached articles (fresh fetch failed)',
+                    'success': True,
+                    'category': category
+                }
             
             return {
-                'total_articles': total,
-                'by_category': categories
+                'articles': [],
+                'cached': False,
+                'timestamp': datetime.now().isoformat(),
+                'age_seconds': 0,
+                'category': category,
+                'success': True,
+                'total_articles': 0,
+                'error': 'No articles available'
             }
-        except Exception as e:
-            print(f"❌ Stats error: {e}")
-            return {'total_articles': 0, 'by_category': {}}
-    
-    def search_news(self, keyword: str, limit: int = 20) -> List[Dict]:
-        """Search news by keyword"""
+
+    def refresh_all(self) -> Dict[str, Any]:
+        """Force refresh all categories"""
+        results = {}
+        for category in self.get_categories():
+            try:
+                result = self.get_articles(category, force_refresh=True)
+                results[category] = {
+                    'success': result.get('success', False),
+                    'count': result.get('total_articles', 0)
+                }
+            except Exception as e:
+                results[category] = {'success': False, 'error': str(e)}
+
+        return {
+            'success': True,
+            'timestamp': datetime.now().isoformat(),
+            'results': results
+        }
+
+    def clear_cache(self) -> bool:
+        """Clear all cached articles"""
         try:
-            conn = sqlite3.connect(self.DB_PATH)
-            conn.row_factory = sqlite3.Row
-            c = conn.cursor()
-            
-            c.execute('''
-                SELECT * FROM news_articles
-                WHERE title LIKE ? OR description LIKE ?
-                ORDER BY fetched_at DESC
-                LIMIT ?
-            ''', (f'%{keyword}%', f'%{keyword}%', limit))
-            
-            rows = c.fetchall()
-            conn.close()
-            
-            return [dict(row) for row in rows]
-        except Exception as e:
-            print(f"❌ Search error: {e}")
-            return []
-    
-    def cleanup_old_articles(self, days: int = 7) -> int:
-        """Remove articles older than N days"""
-        try:
-            conn = sqlite3.connect(self.DB_PATH)
-            c = conn.cursor()
-            
-            cutoff_date = (datetime.now() - timedelta(days=days)).isoformat()
-            c.execute('DELETE FROM news_articles WHERE fetched_at < ?', (cutoff_date,))
-            
-            deleted = c.rowcount
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM news_cache')
             conn.commit()
             conn.close()
-            
-            print(f"🗑️ Cleaned up {deleted} old articles")
-            return deleted
+            logger.info("Cache cleared")
+            return True
         except Exception as e:
-            print(f"❌ Cleanup error: {e}")
-            return 0
+            logger.error(f"Cache clear error: {e}")
+            return False
+
+class NewsManager:
+    def __init__(self):
+        """Initialize news manager and database"""
+        self.api_key = NEWS_API_KEY
+        if not self.api_key:
+            logger.warning("NEWS_API_KEY not set. Some features will be limited.")
+        self._init_database()
+
+    def _init_database(self):
+        """Initialize SQLite database for caching"""
+        try:
+            os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS news_cache (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    category TEXT NOT NULL,
+                    articles TEXT NOT NULL,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    ttl INTEGER DEFAULT 3600
+                )
+            ''')
+            conn.commit()
+            conn.close()
+            logger.info(f"Database initialized at {DB_PATH}")
+        except Exception as e:
+            logger.error(f"Database initialization error: {e}")
+
+    def get_categories(self) -> List[str]:
+        """Get list of available categories"""
+        return list(CATEGORIES.keys())
+
+    def _get_cached_articles(self, category: str) -> Dict[str, Any]:
+        """Get articles from cache if still valid"""
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute(
+                'SELECT articles, timestamp FROM news_cache WHERE category = ? ORDER BY timestamp DESC LIMIT 1',
+                (category,)
+            )
+            result = cursor.fetchone()
+            conn.close()
+
+            if result:
+                articles_json, timestamp = result
+                cached_time = datetime.fromisoformat(timestamp)
+                age = (datetime.now() - cached_time).total_seconds()
+
+                if age < CACHE_TTL:
+                    articles = json.loads(articles_json)
+                    return {
+                        'articles': articles,
+                        'cached': True,
+                        'timestamp': timestamp,
+                        'age_seconds': int(age)
+                    }
+        except Exception as e:
+            logger.error(f"Cache retrieval error for {category}: {e}")
+
+        return None
+
+    def _save_to_cache(self, category: str, articles: List[Dict]) -> bool:
+        """Save articles to cache"""
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            articles_json = json.dumps(articles)
+            cursor.execute(
+                'INSERT INTO news_cache (category, articles, ttl) VALUES (?, ?, ?)',
+                (category, articles_json, CACHE_TTL)
+            )
+            conn.commit()
+            conn.close()
+            logger.info(f"Saved {len(articles)} articles for {category} to cache")
+            return True
+        except Exception as e:
+            logger.error(f"Cache save error for {category}: {e}")
+            return False
+
+    def _fetch_from_newsapi(self, category: str) -> List[Dict[str, Any]]:
+        """Fetch articles from NewsAPI with randomization for variety"""
+        if not self.api_key:
+            logger.warning("NewsAPI key not configured")
+            return []
+
+        try:
+            query = CATEGORIES.get(category, category)
+            params = {
+                'q': query,
+                'sortBy': 'publishedAt',
+                'language': 'en',
+                'pageSize': 20,
+                'apiKey': self.api_key
+            }
+
+            response = requests.get(NEWS_API_BASE_URL, params=params, timeout=10)
+            response.raise_for_status()
+
+            data = response.json()
+            if data.get('status') != 'ok':
+                logger.error(f"NewsAPI error: {data.get('message', 'Unknown error')}")
+                return []
+
+            articles = []
+            for article in data.get('articles', [])[:20]:
+                processed = {
+                    'title': article.get('title', ''),
+                    'description': article.get('description', ''),
+                    'url': article.get('url', ''),
+                    'image': article.get('urlToImage', ''),
+                    'source': article.get('source', {}).get('name', 'Unknown'),
+                    'publishedAt': article.get('publishedAt', ''),
+                    'author': article.get('author', '')
+                }
+                if processed['title'] and processed['url']:
+                    articles.append(processed)
+
+            # Randomize order for variety on each refresh
+            random.shuffle(articles)
+            
+            logger.info(f"Fetched {len(articles)} articles for {category} from NewsAPI (randomized)")
+            return articles
+
+        except requests.exceptions.Timeout:
+            logger.error(f"Timeout fetching articles for {category}")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"API request error for {category}: {e}")
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parse error for {category}: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error fetching articles for {category}: {e}")
+
+        return []
+
+    def get_articles(self, category: str, force_refresh: bool = True) -> Dict[str, Any]:
+        """Get articles for a category - always fetches fresh from NewsAPI"""
+        if category not in CATEGORIES:
+            return {
+                'error': f'Unknown category: {category}',
+                'articles': [],
+                'cached': False
+            }
+
+        # Always fetch fresh from API (force_refresh defaults to True)
+        articles = self._fetch_from_newsapi(category)
+
+        # Save to cache for fallback
+        if articles:
+            self._save_to_cache(category, articles)
+            return {
+                'articles': articles,
+                'cached': False,
+                'timestamp': datetime.now().isoformat(),
+                'age_seconds': 0,
+                'category': category,
+                'success': True,
+                'total_articles': len(articles)
+            }
+        else:
+            # Fallback to cache if fresh fetch fails
+            logger.info(f"Fresh fetch failed for {category}, trying cache fallback")
+            cached = self._get_cached_articles(category)
+            if cached:
+                return {
+                    **cached,
+                    'error': 'Using cached articles (fresh fetch failed)',
+                    'success': True
+                }
+            
+            # No cache either - return empty but successful response
+            return {
+                'articles': [],
+                'cached': False,
+                'timestamp': datetime.now().isoformat(),
+                'age_seconds': 0,
+                'category': category,
+                'success': True,
+                'total_articles': 0
+            }
+
+    def refresh_all(self) -> Dict[str, Any]:
+        """Force refresh all categories"""
+        results = {}
+        for category in self.get_categories():
+            try:
+                articles = self._fetch_from_newsapi(category)
+                if articles:
+                    self._save_to_cache(category, articles)
+                    results[category] = {'success': True, 'count': len(articles)}
+                else:
+                    results[category] = {'success': False, 'error': 'No articles fetched'}
+            except Exception as e:
+                results[category] = {'success': False, 'error': str(e)}
+
+        return {
+            'success': True,
+            'timestamp': datetime.now().isoformat(),
+            'results': results
+        }
+
+    def clear_cache(self) -> bool:
+        """Clear all cached articles"""
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM news_cache')
+            conn.commit()
+            conn.close()
+            logger.info("Cache cleared")
+            return True
+        except Exception as e:
+            logger.error(f"Cache clear error: {e}")
+            return False

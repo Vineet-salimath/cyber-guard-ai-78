@@ -10,6 +10,56 @@ const scanCache = new Map();
 const CACHE_DURATION = 30000; // 30 seconds
 
 // ============================================
+// SCANNING STATE & CONTROL
+// ============================================
+let scanningEnabled = true;
+let scanningSchedule = null;
+let settingsState = {
+  autoScan: true,
+  blockThreats: true,
+  threatAlerts: true,
+  weeklyReports: true,
+  updateNotifications: false
+};
+
+// Load scanning settings from storage
+chrome.storage.local.get(['settings'], (result) => {
+  if (result.settings) {
+    settingsState = result.settings;
+    scanningEnabled = result.settings.autoScan !== false;
+  }
+});
+
+// Function to start real-time scanning
+function startScanning() {
+  scanningEnabled = true;
+  console.log('🟢 Scanning ENABLED - Real-time threat detection active');
+  
+  // Resume web request monitoring
+  if (!scanningSchedule) {
+    scanningSchedule = setInterval(() => {
+      // Periodic scan check
+      console.log('📍 Scan cycle running...');
+    }, 5000);
+  }
+}
+
+// Function to stop all scanning
+function stopScanning() {
+  scanningEnabled = false;
+  console.log('🔴 Scanning DISABLED - All scans halted');
+  
+  // Clear any scheduled scans
+  if (scanningSchedule) {
+    clearInterval(scanningSchedule);
+    scanningSchedule = null;
+  }
+  
+  // Clear active scan cache
+  scanCache.clear();
+}
+
+// ============================================
 // INITIALIZE MANAGERS FOR REAL-TIME UPDATES
 // ============================================
 // These will be loaded from their respective files
@@ -163,6 +213,12 @@ function extractPageData() {
 // SEND TO BACKEND FOR REAL-TIME ANALYSIS
 // ====================
 async function scanURL(tabId, url) {
+  // Check if scanning is enabled
+  if (!scanningEnabled) {
+    console.log('⛔ Scanning disabled - skipping URL:', url);
+    return { error: 'Scanning is disabled in settings', status: 'disabled' };
+  }
+
   // Check if recently scanned
   const cacheKey = url;
   if (scanCache.has(cacheKey)) {
@@ -414,7 +470,53 @@ chrome.action.onClicked.addListener(async (tab) => {
 // MESSAGE HANDLER (Popup communication)
 // ====================
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  // Scanning control messages
+  if (request.type === 'ENABLE_SCANNING') {
+    settingsState.autoScan = true;
+    chrome.storage.local.set({ settings: settingsState });
+    startScanning();
+    sendResponse({ status: 'scanning_enabled', message: 'Real-time scanning activated' });
+    return true;
+  }
+  
+  if (request.type === 'DISABLE_SCANNING') {
+    settingsState.autoScan = false;
+    chrome.storage.local.set({ settings: settingsState });
+    stopScanning();
+    sendResponse({ status: 'scanning_disabled', message: 'All scans halted' });
+    return true;
+  }
+
+  if (request.type === 'UPDATE_THREAT_BLOCKING') {
+    settingsState.blockThreats = request.payload.blockThreats;
+    chrome.storage.local.set({ settings: settingsState });
+    sendResponse({ status: 'updated', setting: 'blockThreats', value: request.payload.blockThreats });
+    return true;
+  }
+
+  if (request.type === 'UPDATE_THREAT_ALERTS') {
+    settingsState.threatAlerts = request.payload.threatAlerts;
+    chrome.storage.local.set({ settings: settingsState });
+    sendResponse({ status: 'updated', setting: 'threatAlerts', value: request.payload.threatAlerts });
+    return true;
+  }
+
+  if (request.type === 'GET_SCANNING_STATUS') {
+    sendResponse({ 
+      scanningEnabled, 
+      settings: settingsState,
+      status: scanningEnabled ? 'active' : 'disabled'
+    });
+    return true;
+  }
+
+  // Legacy action messages
   if (request.action === 'scanCurrent') {
+    if (!scanningEnabled) {
+      sendResponse({ error: 'Scanning is disabled in settings' });
+      return true;
+    }
+    
     chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
       if (tabs[0]) {
         const result = await scanURL(tabs[0].id, tabs[0].url);
