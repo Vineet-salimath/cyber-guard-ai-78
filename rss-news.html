@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cybersecurity News - RSS Aggregator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.98);
+            padding: 24px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            backdrop-filter: blur(10px);
+        }
+        
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            color: #718096;
+            font-size: 1.1rem;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 16px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        
+        .status-info {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .timer {
+            background: #edf2f7;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            color: #2d3748;
+        }
+        
+        .cache-badge {
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        
+        .cache-fresh {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+        
+        .cache-stale {
+            background: #feebc8;
+            color: #7c2d12;
+        }
+        
+        .source-count {
+            color: #4a5568;
+            font-weight: 500;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 4px 6px rgba(102, 126, 234, 0.25);
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+        
+        .news-container {
+            max-width: 1200px;
+            margin: 32px auto;
+            padding: 0 24px;
+        }
+        
+        .category-filters {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        
+        .category-btn {
+            background: white;
+            color: #4a5568;
+            border: 2px solid transparent;
+            padding: 10px 20px;
+            border-radius: 24px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .category-btn:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+        
+        .category-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .news-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 24px;
+        }
+        
+        .news-card {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .news-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+        }
+        
+        .news-card img {
+            width: 100%;
+            height: 220px;
+            object-fit: cover;
+            background: linear-gradient(135deg, #edf2f7 0%, #cbd5e0 100%);
+        }
+        
+        .news-content {
+            padding: 24px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .source-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            width: fit-content;
+        }
+        
+        .badge-general { background: #bee3f8; color: #2c5282; }
+        .badge-analysis { background: #fbd38d; color: #7c2d12; }
+        .badge-enterprise { background: #c6f6d5; color: #22543d; }
+        .badge-threats { background: #fed7d7; color: #742a2a; }
+        .badge-government { background: #e9d8fd; color: #44337a; }
+        
+        .news-card h3 {
+            font-size: 1.2rem;
+            color: #1a202c;
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+        
+        .news-card p {
+            color: #4a5568;
+            line-height: 1.7;
+            margin-bottom: 16px;
+            flex: 1;
+        }
+        
+        .news-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 16px;
+            border-top: 2px solid #edf2f7;
+            margin-top: auto;
+        }
+        
+        .news-source {
+            font-size: 14px;
+            font-weight: 600;
+            color: #667eea;
+        }
+        
+        .news-time {
+            font-size: 13px;
+            color: #a0aec0;
+        }
+        
+        .read-more {
+            display: inline-block;
+            margin-top: 12px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        
+        .read-more:hover {
+            color: #764ba2;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 60px 20px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .spinner {
+            border: 4px solid #edf2f7;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: #fff5f5;
+            color: #c53030;
+            padding: 24px;
+            border-radius: 16px;
+            border: 2px solid #fc8181;
+            text-align: center;
+        }
+        
+        @media (max-width: 768px) {
+            .news-grid { grid-template-columns: 1fr; }
+            .header h1 { font-size: 2rem; }
+            .controls { flex-direction: column; align-items: stretch; }
+            .category-filters { gap: 8px; }
+            .category-btn { padding: 8px 16px; font-size: 14px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1>🔒 Cybersecurity News Hub</h1>
+            <p>Real-time updates from 5 trusted cybersecurity RSS sources</p>
+            
+            <div class="controls">
+                <div class="status-info">
+                    <span class="timer">Auto-refresh: <strong id="timer">10:00</strong></span>
+                    <span id="cache-status" class="cache-badge cache-fresh">Live</span>
+                    <span id="article-count" class="source-count">Loading...</span>
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn" id="refresh-btn" onclick="refreshNews()">
+                        🔄 Refresh
+                    </button>
+                    <button class="btn btn-secondary" onclick="showSources()">
+                        📰 Sources
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="news-container">
+        <div class="category-filters">
+            <button class="category-btn active" data-category="all">All News</button>
+            <button class="category-btn" data-category="general">General</button>
+            <button class="category-btn" data-category="analysis">Analysis</button>
+            <button class="category-btn" data-category="enterprise">Enterprise</button>
+            <button class="category-btn" data-category="threats">Threats</button>
+            <button class="category-btn" data-category="government">Government</button>
+        </div>
+        
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <h3>Fetching latest cybersecurity news...</h3>
+            <p>Aggregating from 5 trusted RSS sources</p>
+        </div>
+        
+        <div id="news-grid" class="news-grid"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3001';
+        let allArticles = [];
+        let currentCategory = 'all';
+        let autoRefreshTimer;
+        let countdownInterval;
+        let remainingSeconds = 600;
+
+        // Fetch all news
+        async function fetchNews() {
+            const refreshBtn = document.getElementById('refresh-btn');
+            refreshBtn.disabled = true;
+            refreshBtn.textContent = '⏳ Loading...';
+            
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('news-grid').innerHTML = '';
+            
+            try {
+                const response = await fetch(`${API_URL}/api/news/cybersecurity`);
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const data = await response.json();
+                
+                document.getElementById('loading').style.display = 'none';
+                
+                // Update UI status
+                updateStatus(data);
+                
+                if (data.status === 'ok' && data.articles.length > 0) {
+                    allArticles = data.articles;
+                    filterAndDisplay(currentCategory);
+                } else {
+                    showError('No articles available');
+                }
+                
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('loading').style.display = 'none';
+                showError(`Failed to load news: ${error.message}<br><small>Make sure RSS server is running on port 3001</small>`);
+            } finally {
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = '🔄 Refresh';
+            }
+        }
+
+        function updateStatus(data) {
+            const cacheStatus = document.getElementById('cache-status');
+            const articleCount = document.getElementById('article-count');
+            
+            if (data.cached) {
+                cacheStatus.textContent = `Cached (${data.cacheAge}s ago)`;
+                cacheStatus.className = 'cache-badge cache-stale';
+            } else {
+                cacheStatus.textContent = 'Live Data';
+                cacheStatus.className = 'cache-badge cache-fresh';
+            }
+            
+            articleCount.textContent = `${data.articles.length} articles from ${data.sources?.length || 5} sources`;
+        }
+
+        function filterAndDisplay(category) {
+            const filtered = category === 'all' 
+                ? allArticles 
+                : allArticles.filter(a => a.source.category === category);
+            
+            displayNews(filtered);
+        }
+
+        function displayNews(articles) {
+            const grid = document.getElementById('news-grid');
+            grid.innerHTML = '';
+            
+            if (articles.length === 0) {
+                grid.innerHTML = '<div class="error">No articles found for this category</div>';
+                return;
+            }
+            
+            articles.forEach(article => {
+                const card = document.createElement('div');
+                card.className = 'news-card';
+                
+                const badgeClass = `badge-${article.source.category}`;
+                const timeAgo = getTimeAgo(article.publishedAt);
+                
+                card.innerHTML = `
+                    ${article.image ? `<img src="${article.image}" alt="Article" onerror="this.style.display='none'">` : ''}
+                    <div class="news-content">
+                        <span class="source-badge ${badgeClass}">
+                            <span>${article.source.icon}</span>
+                            <span>${article.source.category.toUpperCase()}</span>
+                        </span>
+                        <h3>${article.title}</h3>
+                        <p>${truncateText(article.description, 150)}</p>
+                        <div class="news-meta">
+                            <span class="news-source">${article.source.name}</span>
+                            <span class="news-time">${timeAgo}</span>
+                        </div>
+                        <a href="${article.url}" target="_blank" rel="noopener noreferrer" class="read-more">
+                            Read full article →
+                        </a>
+                    </div>
+                `;
+                
+                grid.appendChild(card);
+            });
+        }
+
+        function truncateText(text, maxLength) {
+            if (!text) return 'No description available.';
+            return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+        }
+
+        function getTimeAgo(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+            const diffDays = Math.floor(diffHours / 24);
+            
+            if (diffHours < 1) return 'Just now';
+            if (diffHours < 24) return `${diffHours}h ago`;
+            if (diffDays < 7) return `${diffDays}d ago`;
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+
+        function showError(message) {
+            document.getElementById('news-grid').innerHTML = `<div class="error"><strong>⚠️ Error</strong><br><br>${message}</div>`;
+        }
+
+        async function showSources() {
+            try {
+                const response = await fetch(`${API_URL}/api/sources`);
+                const data = await response.json();
+                const sourceList = data.sources.map(s => `${s.icon} ${s.name} (${s.category})`).join('\n');
+                alert(`📰 RSS Sources:\n\n${sourceList}`);
+            } catch (error) {
+                alert('Failed to fetch sources');
+            }
+        }
+
+        function refreshNews() {
+            clearInterval(countdownInterval);
+            clearTimeout(autoRefreshTimer);
+            remainingSeconds = 600;
+            fetchNews();
+            startAutoRefresh();
+        }
+
+        function updateCountdown() {
+            const minutes = Math.floor(remainingSeconds / 60);
+            const seconds = remainingSeconds % 60;
+            document.getElementById('timer').textContent = 
+                `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            if (remainingSeconds <= 0) {
+                refreshNews();
+            } else {
+                remainingSeconds--;
+            }
+        }
+
+        function startAutoRefresh() {
+            countdownInterval = setInterval(updateCountdown, 1000);
+            autoRefreshTimer = setTimeout(refreshNews, 600000);
+        }
+
+        // Category filter buttons
+        document.querySelectorAll('.category-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentCategory = btn.dataset.category;
+                filterAndDisplay(currentCategory);
+            });
+        });
+
+        // Initialize
+        fetchNews();
+        startAutoRefresh();
+    </script>
+</body>
+</html>
