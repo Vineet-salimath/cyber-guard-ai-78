@@ -25,7 +25,6 @@ const UnifiedCyberNews = () => {
   const [articles, setArticles] = useState<NewsArticle[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [category, setCategory] = useState<string>("all");
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Try RSS server first, fall back to Flask backend
@@ -45,8 +44,7 @@ const UnifiedCyberNews = () => {
       let useRss = false;
       
       try {
-        const categoryParam = category !== "all" ? `?category=${category}` : "";
-        const res = await fetch(`${RSS_API}/api/news/cybersecurity${categoryParam}`, {
+        const res = await fetch(`${RSS_API}/api/news/cybersecurity`, {
           signal: AbortSignal.timeout(10000)
         });
         
@@ -103,7 +101,7 @@ const UnifiedCyberNews = () => {
         clearInterval(refreshIntervalRef.current);
       }
     };
-  }, [category]);
+  }, []);
 
   const formatDate = (dateString: string) => {
     try {
@@ -154,8 +152,6 @@ const UnifiedCyberNews = () => {
     return tmp.textContent || tmp.innerText || "";
   };
 
-  const categories = ["all", "general", "analysis", "enterprise", "threats", "government"];
-
   return (
     <DashboardLayout>
       <div className="p-6 space-y-6">
@@ -194,21 +190,6 @@ const UnifiedCyberNews = () => {
               {articles && <span>{articles.length} articles</span>}
             </div>
           </div>
-        </div>
-
-        {/* Category Filters */}
-        <div className="flex gap-2 flex-wrap">
-          {categories.map((cat) => (
-            <Button
-              key={cat}
-              onClick={() => setCategory(cat)}
-              variant={category === cat ? "default" : "outline"}
-              size="sm"
-              className="capitalize"
-            >
-              {cat === "all" ? "All News" : cat}
-            </Button>
-          ))}
         </div>
 
         {/* Error State */}
