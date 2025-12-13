@@ -142,8 +142,22 @@ setInterval(updateCache, UPDATE_INTERVAL);
 // Main news endpoint
 app.get('/api/news/cybersecurity', async (req, res) => {
   try {
-    // Update cache if needed
-    await updateCache();
+    // Check if force refresh is requested
+    const forceRefresh = req.query.refresh === 'true';
+    
+    // Update cache if needed or if force refresh is requested
+    if (forceRefresh) {
+      console.log('[RSS] Force refresh requested - fetching fresh data');
+      const articles = await fetchAllFeeds();
+      cache = {
+        articles,
+        timestamp: Date.now(),
+        cacheAge: 0,
+        cached: false
+      };
+    } else {
+      await updateCache();
+    }
     
     const category = req.query.category || 'all';
     let articles = cache.articles;
@@ -155,7 +169,7 @@ app.get('/api/news/cybersecurity', async (req, res) => {
     
     // Pagination
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 30;
+    const limit = parseInt(req.query.limit) || 50;
     const start = (page - 1) * limit;
     const paginated = articles.slice(start, start + limit);
     

@@ -30,9 +30,25 @@ const UnifiedCyberNews = () => {
   // Try RSS server first, fall back to Flask backend
   const RSS_API = "http://localhost:3001";
   const BACKEND_API = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-  const AUTO_REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minutes
+  const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes - faster updates
 
-  const fetchNews = async (isAutoRefresh = false) => {
+  const filterPastWeekArticles = (articles: any[]) => {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+    return articles
+      .filter(article => {
+        const pubDate = new Date(article.publishedAt || article.published || new Date());
+        return pubDate >= oneWeekAgo;
+      })
+      .sort((a, b) => {
+        const dateA = new Date(a.publishedAt || a.published || 0).getTime();
+        const dateB = new Date(b.publishedAt || b.published || 0).getTime();
+        return dateB - dateA; // Newest first
+      });
+  };
+
+  const fetchNews = async (isAutoRefresh = false, forceRefresh = false) => {
     if (!isAutoRefresh) {
       setLoading(true);
       setError(null);
@@ -44,7 +60,9 @@ const UnifiedCyberNews = () => {
       let useRss = false;
       
       try {
-        const res = await fetch(`${RSS_API}/api/news/cybersecurity`, {
+        // Add refresh parameter to bypass cache on manual refresh
+        const refreshParam = forceRefresh ? "?refresh=true" : "";
+        const res = await fetch(`${RSS_API}/api/news/cybersecurity${refreshParam}`, {
           signal: AbortSignal.timeout(10000)
         });
         
@@ -74,7 +92,9 @@ const UnifiedCyberNews = () => {
           author: article.author || undefined
         }));
         
-        setArticles(processedArticles);
+        // Filter to only past week articles and sort by newest first
+        const filteredArticles = filterPastWeekArticles(processedArticles);
+        setArticles(filteredArticles);
       } else {
         throw new Error(data.message || "Failed to load articles");
       }
@@ -168,7 +188,7 @@ const UnifiedCyberNews = () => {
               </p>
             </div>
             <Button 
-              onClick={() => fetchNews()} 
+              onClick={() => fetchNews(false, true)} 
               disabled={loading} 
               variant="outline" 
               size="lg"
@@ -183,11 +203,11 @@ const UnifiedCyberNews = () => {
           <div className="flex items-center justify-between px-4 py-3 bg-muted rounded-lg">
             <div className="text-sm">
               <span className="text-muted-foreground">
-                Live RSS feeds from 5 trusted cybersecurity sources - Auto-refreshes every 10 minutes
+                Security news from the past 7 days - Auto-refreshes every 5 minutes with latest updates
               </span>
             </div>
             <div className="text-sm font-medium">
-              {articles && <span>{articles.length} articles</span>}
+              {articles && <span>{articles.length} articles this week</span>}
             </div>
           </div>
         </div>
