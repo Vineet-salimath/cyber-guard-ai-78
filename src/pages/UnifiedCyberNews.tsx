@@ -11,7 +11,12 @@ type NewsArticle = {
   url: string;
   publishedAt: string;
   description: string;
-  source: string;
+  source: {
+    name: string;
+    category: string;
+    icon?: string;
+  } | string;
+  image?: string;
   urlToImage?: string;
   author?: string;
 };
@@ -20,10 +25,13 @@ const UnifiedCyberNews = () => {
   const [articles, setArticles] = useState<NewsArticle[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [category, setCategory] = useState<string>("all");
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Try RSS server first, fall back to Flask backend
+  const RSS_API = "http://localhost:3001";
   const BACKEND_API = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-  const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes - auto refresh in background
+  const AUTO_REFRESH_INTERVAL = 10 * 60 * 1000; // 10 minutes
 
   const fetchNews = async (isAutoRefresh = false) => {
     if (!isAutoRefresh) {
@@ -32,20 +40,50 @@ const UnifiedCyberNews = () => {
     }
     
     try {
-      const res = await fetch(`${BACKEND_API}/api/cybersecurity-news`);
-      if (!res.ok) throw new Error(`Failed to fetch news: ${res.status}`);
+      // Try RSS server first
+      let data;
+      let useRss = false;
       
-      const data = await res.json();
+      try {
+        const categoryParam = category !== "all" ? `?category=${category}` : "";
+        const res = await fetch(`${RSS_API}/api/news/cybersecurity${categoryParam}`, {
+          signal: AbortSignal.timeout(10000)
+        });
+        
+        if (res.ok) {
+          data = await res.json();
+          useRss = true;
+        } else {
+          throw new Error("RSS server not responding");
+        }
+      } catch (rssErr) {
+        console.log("RSS server unavailable, trying Flask backend...");
+        const res = await fetch(`${BACKEND_API}/api/cybersecurity-news`);
+        if (!res.ok) throw new Error(`Failed to fetch news: ${res.status}`);
+        data = await res.json();
+      }
       
-      if (data.status === 'success' && data.articles) {
-        setArticles(data.articles);
+      if (data.status === 'ok' || data.status === 'success') {
+        const processedArticles = data.articles.map((article: any) => ({
+          title: article.title || "",
+          url: article.url || article.link || "#",
+          publishedAt: article.publishedAt || article.published || new Date().toISOString(),
+          description: article.description || "",
+          source: useRss 
+            ? article.source 
+            : (typeof article.source === "string" ? article.source : article.source?.name || "News"),
+          urlToImage: article.urlToImage || article.image || undefined,
+          author: article.author || undefined
+        }));
+        
+        setArticles(processedArticles);
       } else {
         throw new Error(data.message || "Failed to load articles");
       }
     } catch (err: any) {
       console.error(err);
       if (!isAutoRefresh || !articles) {
-        setError(err?.message || "Unable to load news");
+        setError(err?.message || "Unable to load news. Make sure RSS server is running on port 3001");
       }
     } finally {
       if (!isAutoRefresh) {
@@ -55,10 +93,7 @@ const UnifiedCyberNews = () => {
   };
 
   useEffect(() => {
-    // Initial fetch
     fetchNews();
-
-    // Setup auto-refresh every 15 minutes
     refreshIntervalRef.current = setInterval(() => {
       fetchNews(true);
     }, AUTO_REFRESH_INTERVAL);
@@ -68,7 +103,7 @@ const UnifiedCyberNews = () => {
         clearInterval(refreshIntervalRef.current);
       }
     };
-  }, []);
+  }, [category]);
 
   const formatDate = (dateString: string) => {
     try {
@@ -93,14 +128,24 @@ const UnifiedCyberNews = () => {
     }
   };
 
-  const getSourceColor = (source: string) => {
+  const getSourceColor = (source: any) => {
+    // Handle both string and object source types
+    const sourceName = typeof source === "string" ? source : source?.name || "";
+    
     const colors: { [key: string]: string } = {
       "Krebs on Security": "bg-blue-100 text-blue-800",
       "BleepingComputer": "bg-purple-100 text-purple-800",
       "The Hacker News": "bg-red-100 text-red-800",
       "Dark Reading": "bg-orange-100 text-orange-800",
+      "Security Affairs": "bg-red-100 text-red-800",
+      "ZDNet Security": "bg-purple-100 text-purple-800",
+      "SANS ISC Diary": "bg-green-100 text-green-800",
     };
-    return colors[source] || "bg-gray-100 text-gray-800";
+    return colors[sourceName] || "bg-gray-100 text-gray-800";
+  };
+
+  const getSourceDisplayName = (source: any) => {
+    return typeof source === "string" ? source : source?.name || "News";
   };
 
   const stripHtml = (html: string) => {
@@ -108,6 +153,8 @@ const UnifiedCyberNews = () => {
     tmp.innerHTML = html;
     return tmp.textContent || tmp.innerText || "";
   };
+
+  const categories = ["all", "general", "analysis", "enterprise", "threats", "government"];
 
   return (
     <DashboardLayout>
@@ -140,13 +187,28 @@ const UnifiedCyberNews = () => {
           <div className="flex items-center justify-between px-4 py-3 bg-muted rounded-lg">
             <div className="text-sm">
               <span className="text-muted-foreground">
-                Fresh news from NewsAPI - Auto-refreshes every 5 minutes
+                Live RSS feeds from 5 trusted cybersecurity sources - Auto-refreshes every 10 minutes
               </span>
             </div>
             <div className="text-sm font-medium">
               {articles && <span>{articles.length} articles</span>}
             </div>
           </div>
+        </div>
+
+        {/* Category Filters */}
+        <div className="flex gap-2 flex-wrap">
+          {categories.map((cat) => (
+            <Button
+              key={cat}
+              onClick={() => setCategory(cat)}
+              variant={category === cat ? "default" : "outline"}
+              size="sm"
+              className="capitalize"
+            >
+              {cat === "all" ? "All News" : cat}
+            </Button>
+          ))}
         </div>
 
         {/* Error State */}
@@ -207,7 +269,7 @@ const UnifiedCyberNews = () => {
                         </CardTitle>
                         <div className="flex items-center gap-2 flex-wrap">
                           <Badge className={`${getSourceColor(article.source)} font-semibold text-xs`}>
-                            {article.source}
+                            {getSourceDisplayName(article.source)}
                           </Badge>
                           <span className="text-xs text-muted-foreground">
                             {formatDate(article.publishedAt)}
