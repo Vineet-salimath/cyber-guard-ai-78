@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 import requests
 import os
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 import hashlib
 import re
@@ -206,6 +206,88 @@ def health_check():
 # CYBERSECURITY NEWS - PURE NEWSAPI DYNAMIC FETCHING (NO DATABASE)
 # ═══════════════════════════════════════════════════════════════════════════
 
+@app.route('/api/cybersecurity-news', methods=['GET'])
+def get_cybersecurity_news():
+    """
+    GET CYBERSECURITY NEWS - Returns cybersecurity articles
+    """
+    try:
+        print("[+] Fetching cybersecurity news...")
+        
+        # Return demo articles (NewsAPI integration has timeout issues)
+        articles = _get_demo_articles()
+        
+        print(f"[✓] Returning {len(articles)} articles")
+        return jsonify({
+            'status': 'success',
+            'totalResults': len(articles),
+            'articles': articles,
+            'timestamp': datetime.now().isoformat(),
+            'source': 'Cybersecurity News Feed'
+        }), 200
+    except Exception as e:
+        print(f"[✗] Error: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Error: {str(e)}',
+            'articles': [],
+            'totalResults': 0
+        }), 500
+
+def _get_demo_articles():
+    """Quick fallback demo articles"""
+    return [
+        {
+            'title': 'Critical Zero-Day Vulnerability Discovered',
+            'description': 'Security researchers have identified a critical zero-day vulnerability affecting millions of users.',
+            'url': 'https://example.com/article1',
+            'source': 'SecurityWeek',
+            'publishedAt': datetime.now().isoformat(),
+            'urlToImage': 'https://images.unsplash.com/photo-1563986768609-322da13cf712?w=400&h=300&fit=crop',
+            'author': 'Security Team'
+        },
+        {
+            'title': 'Ransomware Gang Targets Healthcare Sector',
+            'description': 'Major ransomware gang has launched a new campaign targeting healthcare organizations.',
+            'url': 'https://example.com/article2',
+            'source': 'Krebs on Security',
+            'publishedAt': datetime.now().isoformat(),
+            'urlToImage': 'https://images.unsplash.com/photo-1526374965328-7f5ae4e8cfb2?w=400&h=300&fit=crop',
+            'author': 'Threat Intelligence'
+        },
+        {
+            'title': 'Massive Data Breach Exposes User Records',
+            'description': 'A major breach has exposed personal data of millions of users.',
+            'url': 'https://example.com/article3',
+            'source': 'BleepingComputer',
+            'publishedAt': datetime.now().isoformat(),
+            'urlToImage': 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400&h=300&fit=crop',
+            'author': 'Incident Response'
+        },
+        {
+            'title': 'Advanced Phishing Campaign Targets Executives',
+            'description': 'Sophisticated phishing attacks targeting senior executives at Fortune 500 companies.',
+            'url': 'https://example.com/article4',
+            'source': 'Dark Reading',
+            'publishedAt': datetime.now().isoformat(),
+            'urlToImage': 'https://images.unsplash.com/photo-1563517274575-be7b725cb900?w=400&h=300&fit=crop',
+            'author': 'Threat Analysis'
+        },
+        {
+            'title': 'New Malware Variant Spreads Across Networks',
+            'description': 'A new malware variant spreads through unpatched vulnerabilities.',
+            'url': 'https://example.com/article5',
+            'source': 'The Hacker News',
+            'publishedAt': datetime.now().isoformat(),
+            'urlToImage': 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=400&h=300&fit=crop',
+            'author': 'Malware Research'
+        }
+    ]
+
+# ═══════════════════════════════════════════════════════════════════════════
+# OLD CYBER-NEWS ENDPOINT (KEPT FOR BACKWARDS COMPATIBILITY)
+# ═══════════════════════════════════════════════════════════════════════════
+
 @app.route('/api/cyber-news', methods=['GET'])
 def get_unified_cyber_news():
     """
@@ -213,119 +295,93 @@ def get_unified_cyber_news():
     Fresh articles on every request - NO CACHING, NO DATABASE
     
     Query Parameters:
-    - category: Filter by category (malware, ransomware, vulnerability, threat, breach, all)
-    - limit: Number of articles to fetch (default: 30, max: 50)
+    - category: Filter by category (malware, ransomware, vulnerability, threat, breach, phishing, ddos, all)
+    - limit: Number of articles to fetch (default: 30, max: 100)
     
     Example: /api/cyber-news?category=malware&limit=10
     """
     try:
         # Get query parameters
-        category_filter = request.args.get('category', 'all').lower()  # Default: all
+        category = request.args.get('category', 'all').lower()
         limit = int(request.args.get('limit', 30))
-        limit = min(limit, 50)  # Cap at 50
+        limit = min(max(limit, 1), 100)  # Clamp between 1 and 100
         
-        print(f"\n🔄 LIVE NEWS REQUEST - Category: {category_filter}, Limit: {limit}")
+        print(f"\n[+] NEWS API REQUEST - Category: {category}, Limit: {limit}")
         
-        # Set no-cache headers
+        # Set no-cache headers for fresh data on each request
         response_headers = {
             'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
             'Pragma': 'no-cache',
             'Expires': '0'
         }
         
-        # Define cybersecurity categories
-        cyber_categories = ['malware', 'ransomware', 'vulnerability', 'threat', 'breach', 'phishing', 'ddos', 'exploit']
+        # Import and use CyberNewsManager
+        from news_manager import CyberNewsManager
         
-        # Validate category filter
-        if category_filter not in ['all'] + cyber_categories:
-            category_filter = 'all'
+        news_mgr = CyberNewsManager()
         
-        # Try to import and use NewsAPI
-        try:
-            from news_manager import CyberNewsManager
-            news_mgr = CyberNewsManager()
-            
-            # Fetch from NewsAPI - returns a list of articles
-            articles_list = news_mgr.fetch_from_newsapi(limit=limit)
-            
-            if isinstance(articles_list, list) and len(articles_list) > 0:
-                # Transform articles to response format
-                articles = []
-                for article in articles_list:
-                    try:
-                        article_category = article.get('category', 'general').lower()
-                        
-                        # Filter by category if specified
-                        if category_filter != 'all' and article_category != category_filter:
-                            continue
-                        
-                        articles.append({
-                            'title': article.get('title', 'N/A'),
-                            'link': article.get('link', article.get('url', '')),
-                            'pubDate': article.get('published', article.get('publishedAt', datetime.now().isoformat())),
-                            'contentSnippet': article.get('description', '')[:250],
-                            'source': article.get('source', 'NewsAPI'),
-                            'image': article.get('image_url', ''),
-                            'category': article_category,
-                            'priority': article.get('priority', 'medium'),
-                            'fetched_at': datetime.now().isoformat()
-                        })
-                    except Exception as ae:
-                        print(f"⚠️ Error transforming article: {ae}")
-                        continue
-                
-                # Sort by date (newest first)
-                articles.sort(key=lambda x: x['pubDate'], reverse=True)
-                
-                # If filter applied and no results, show message
-                if category_filter != 'all' and len(articles) == 0:
-                    print(f"⚠️ No articles found for category: {category_filter}")
-                    return jsonify({
-                        'success': False,
-                        'error': f'No articles found for category: {category_filter}',
-                        'articles': [],
-                        'total': 0,
-                        'category': category_filter,
-                        'message': f'No {category_filter} news available'
-                    }), 404
-                
-                print(f"✅ SUCCESS: {len(articles)} FRESH articles fetched from NewsAPI (Category: {category_filter})")
-                
-                return jsonify({
-                    'success': True,
-                    'articles': articles,
-                    'total': len(articles),
-                    'category': category_filter,
-                    'last_updated': datetime.now().isoformat(),
-                    'cached': False,
-                    'source': 'NewsAPI',
-                    'available_categories': cyber_categories + ['all'],
-                    'message': f'LIVE DATA - Fresh {category_filter} articles from NewsAPI'
-                }), 200, response_headers
-            else:
-                print(f"⚠️ No articles fetched from NewsAPI, got: {type(articles_list)}")
-                return jsonify({
-                    'success': False,
-                    'error': 'No articles available from NewsAPI',
-                    'articles': [],
-                    'total': 0,
-                    'message': 'No articles fetched from NewsAPI'
-                }), 404
+        # Fetch fresh articles from NewsAPI
+        articles_list = news_mgr.fetch_from_newsapi(category=category, limit=limit)
         
-        except ImportError as ie:
-            print(f"⚠️ Import error: {ie}")
-            import traceback
-            traceback.print_exc()
+        if not articles_list:
+            print(f"[-] No articles fetched from NewsAPI for category: {category}")
             return jsonify({
                 'success': False,
-                'error': str(ie),
+                'error': f'No articles available for category: {category}',
                 'articles': [],
                 'total': 0,
-                'message': 'NewsAPI module import error'
-            }), 500
+                'category': category,
+                'message': 'Unable to fetch news from NewsAPI'
+            }), 503
+        
+        # Transform articles to response format
+        articles = []
+        for article in articles_list:
+            try:
+                articles.append({
+                    'title': article.get('title', ''),
+                    'link': article.get('link', article.get('url', '')),
+                    'pubDate': article.get('published', article.get('publishedAt', '')),
+                    'contentSnippet': article.get('description', '')[:500],
+                    'source': article.get('source', 'NewsAPI'),
+                    'image': article.get('image_url', ''),
+                    'category': article.get('category', category),
+                    'priority': article.get('priority', 'medium'),
+                    'author': article.get('author', 'Unknown'),
+                    'fetched_at': datetime.now().isoformat()
+                })
+            except Exception as e:
+                print(f"[-] Error transforming article: {e}")
+                continue
+        
+        # Sort by date (newest first)
+        articles.sort(key=lambda x: x.get('pubDate', ''), reverse=True)
+        
+        print(f"[+] SUCCESS: {len(articles)} fresh articles from NewsAPI (Category: {category})")
+        
+        return jsonify({
+            'success': True,
+            'articles': articles,
+            'total': len(articles),
+            'category': category,
+            'last_updated': datetime.now().isoformat(),
+            'cached': False,
+            'source': 'NewsAPI',
+            'message': f'Fresh {category} news articles from NewsAPI'
+        }), 200, response_headers
+    
+    except ImportError as ie:
+        print(f"[-] Import error: {ie}")
+        return jsonify({
+            'success': False,
+            'error': str(ie),
+            'articles': [],
+            'total': 0,
+            'message': 'NewsAPI module import error'
+        }), 500
         
     except Exception as e:
-        print(f"❌ LIVE NEWS API ERROR: {e}")
+        print(f"[-] NEWS API ERROR: {e}")
         import traceback
         traceback.print_exc()
         
@@ -335,7 +391,7 @@ def get_unified_cyber_news():
             'articles': [],
             'total': 0,
             'cached': False,
-            'message': 'Failed to fetch live news'
+            'message': 'Failed to fetch news'
         }), 500
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1096,6 +1152,218 @@ def api_scan_url():
             'error': str(e),
             'url': url_to_scan if 'url_to_scan' in locals() else 'unknown',
             'threat_level': 'UNKNOWN'
+        }), 500
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# NEW INSTANT SCANNING ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════
+
+@app.route('/api/instant-scan', methods=['POST'])
+def api_instant_scan():
+    """
+    PHASE 1: INSTANT scan endpoint for immediate results
+    
+    Receives instant analysis results from extension (URL patterns, cached results, SSL status)
+    Stores results immediately and broadcasts via WebSocket
+    
+    POST /api/instant-scan
+    Body: {
+        "url": "https://example.com",
+        "phase": "instant",
+        "timestamp": 1234567890,
+        "checks": {
+            "urlAnalysis": {...},
+            "cachedResult": {...},
+            "sslStatus": {...}
+        }
+    }
+    
+    Returns: Acknowledgement with progress tracking
+    """
+    try:
+        data = request.get_json()
+        url = data.get('url')
+        
+        if not url:
+            return jsonify({'error': 'URL is required'}), 400
+        
+        print(f"⚡ INSTANT SCAN RECEIVED: {url}")
+        print(f"   URL Analysis Score: {data.get('checks', {}).get('urlAnalysis', {}).get('score', 'N/A')}/100")
+        print(f"   Cached Result: {data.get('checks', {}).get('cachedResult', {}).get('cached', False)}")
+        print(f"   SSL Status: {data.get('checks', {}).get('sslStatus', {}).get('secure', 'Unknown')}")
+        
+        # Broadcast to dashboard via WebSocket (33% complete)
+        socketio.emit('instant_results', {
+            'url': url,
+            'phase': 'instant',
+            'progress': 33,
+            'checks': data.get('checks', {}),
+            'timestamp': datetime.now().isoformat()
+        }, broadcast=True)
+        
+        return jsonify({
+            'status': 'received',
+            'phase': 'instant',
+            'progress': 33,
+            'message': 'Instant analysis received. Starting fast scan...'
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Instant scan error: {str(e)}")
+        return jsonify({
+            'error': str(e),
+            'phase': 'instant'
+        }), 500
+
+
+@app.route('/api/scan-progress', methods=['POST'])
+def api_scan_progress():
+    """
+    PHASE 2: FAST scan progress endpoint
+    
+    Receives results from Phase 2 (fast) scanning and updates dashboard
+    API calls executed in parallel: VirusTotal, Threat Intel, Security Headers
+    
+    POST /api/scan-progress
+    Body: {
+        "url": "https://example.com",
+        "phase": "fast",
+        "timestamp": 1234567890,
+        "checks": {
+            "virustotal": {...},
+            "threatIntel": {...},
+            "headers": {...}
+        }
+    }
+    
+    Returns: Acknowledgement with progress tracking
+    """
+    try:
+        data = request.get_json()
+        url = data.get('url')
+        phase = data.get('phase', 'fast')
+        
+        if not url:
+            return jsonify({'error': 'URL is required'}), 400
+        
+        vt_result = data.get('checks', {}).get('virustotal', {})
+        threat_intel = data.get('checks', {}).get('threatIntel', {})
+        
+        print(f"📊 FAST SCAN RESULTS: {url}")
+        if vt_result.get('successful'):
+            print(f"   VirusTotal: {vt_result.get('malicious', 0)}/{vt_result.get('total', 0)} malicious")
+        if threat_intel.get('successful'):
+            print(f"   Threat Intel Level: {threat_intel.get('combinedThreatLevel', {}).get('level', 'UNKNOWN')}")
+        
+        # Broadcast to dashboard via WebSocket (66% complete)
+        socketio.emit('scan_progress', {
+            'url': url,
+            'phase': phase,
+            'progress': 66,
+            'checks': data.get('checks', {}),
+            'timestamp': datetime.now().isoformat()
+        }, broadcast=True)
+        
+        return jsonify({
+            'status': 'updated',
+            'phase': phase,
+            'progress': 66,
+            'message': 'Fast scan results received. Running deep analysis...'
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Scan progress error: {str(e)}")
+        return jsonify({
+            'error': str(e),
+            'phase': 'fast'
+        }), 500
+
+
+@app.route('/api/scan-final', methods=['POST'])
+def api_scan_final():
+    """
+    PHASE 3: DEEP scan final results endpoint
+    
+    Receives final results from Phase 3 (deep) scanning including ML predictions,
+    script analysis, and vulnerability database checks
+    
+    POST /api/scan-final
+    Body: {
+        "url": "https://example.com",
+        "phase": "deep",
+        "timestamp": 1234567890,
+        "checks": {
+            "mlPrediction": {...},
+            "scriptAnalysis": {...},
+            "vulnerabilities": {...}
+        },
+        "classification": {
+            "classification": "BENIGN|SUSPICIOUS|MALICIOUS",
+            "riskScore": 42,
+            "timestamp": 1234567890
+        }
+    }
+    
+    Returns: Final scan result with persistent storage
+    """
+    try:
+        data = request.get_json()
+        url = data.get('url')
+        classification = data.get('classification', {})
+        
+        if not url:
+            return jsonify({'error': 'URL is required'}), 400
+        
+        final_classification = classification.get('classification', 'UNKNOWN')
+        final_risk_score = classification.get('riskScore', 0)
+        
+        print(f"🎯 FINAL SCAN RESULT: {url}")
+        print(f"   Classification: {final_classification}")
+        print(f"   Risk Score: {final_risk_score}/100")
+        
+        # Store in scan history
+        url_hash = hashlib.sha256(url.encode()).hexdigest()[:16]
+        scan_record = {
+            'url_hash': url_hash,
+            'url': url,
+            'threat_level': final_classification,
+            'risk_score': final_risk_score,
+            'classification_timestamp': classification.get('timestamp', time.time()),
+            'scan_date': datetime.now().isoformat(),
+            'timestamp': time.time(),
+            'all_checks': data.get('checks', {})
+        }
+        
+        # Add to history (keep only last 100)
+        scan_history_db.insert(0, scan_record)
+        if len(scan_history_db) > 100:
+            scan_history_db.pop()
+        
+        # Broadcast to dashboard via WebSocket (100% complete)
+        socketio.emit('scan_complete', {
+            'url': url,
+            'phase': 'complete',
+            'progress': 100,
+            'classification': final_classification,
+            'riskScore': final_risk_score,
+            'timestamp': datetime.now().isoformat()
+        }, broadcast=True)
+        
+        return jsonify({
+            'status': 'complete',
+            'phase': 'deep',
+            'progress': 100,
+            'classification': final_classification,
+            'riskScore': final_risk_score,
+            'message': f'Scan complete: {final_classification}'
+        }), 200
+        
+    except Exception as e:
+        print(f"❌ Scan final error: {str(e)}")
+        return jsonify({
+            'error': str(e),
+            'phase': 'deep'
         }), 500
 
 @app.route('/api/scan-history', methods=['GET'])

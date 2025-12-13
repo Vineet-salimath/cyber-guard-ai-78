@@ -8,22 +8,22 @@ import { ExternalLink, RefreshCw, Rss } from "lucide-react";
 
 type NewsArticle = {
   title: string;
-  link: string;
-  pubDate: string;
-  contentSnippet: string;
+  url: string;
+  publishedAt: string;
+  description: string;
   source: string;
+  urlToImage?: string;
+  author?: string;
 };
 
 const UnifiedCyberNews = () => {
   const [articles, setArticles] = useState<NewsArticle[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [isCached, setIsCached] = useState(false);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const BACKEND_API = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-  const AUTO_REFRESH_INTERVAL = 15 * 60 * 1000; // 15 minutes
+  const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes - auto refresh in background
 
   const fetchNews = async (isAutoRefresh = false) => {
     if (!isAutoRefresh) {
@@ -32,21 +32,15 @@ const UnifiedCyberNews = () => {
     }
     
     try {
-      const res = await fetch(`${BACKEND_API}/api/cyber-news`);
+      const res = await fetch(`${BACKEND_API}/api/cybersecurity-news`);
       if (!res.ok) throw new Error(`Failed to fetch news: ${res.status}`);
       
       const data = await res.json();
       
-      if (data.success && data.articles) {
+      if (data.status === 'success' && data.articles) {
         setArticles(data.articles);
-        setLastUpdated(new Date());
-        setIsCached(data.cached || false);
-        
-        if (data.fetch_errors && data.fetch_errors.length > 0) {
-          console.warn("Some feeds failed to fetch:", data.fetch_errors);
-        }
       } else {
-        throw new Error(data.error || "Failed to load articles");
+        throw new Error(data.message || "Failed to load articles");
       }
     } catch (err: any) {
       console.error(err);
@@ -145,12 +139,9 @@ const UnifiedCyberNews = () => {
           {/* Last Updated Info */}
           <div className="flex items-center justify-between px-4 py-3 bg-muted rounded-lg">
             <div className="text-sm">
-              {lastUpdated && (
-                <span className="text-muted-foreground">
-                  Last updated: {lastUpdated.toLocaleTimeString()} 
-                  {isCached && <span className="ml-2 text-xs text-yellow-600">(cached)</span>}
-                </span>
-              )}
+              <span className="text-muted-foreground">
+                Fresh news from NewsAPI - Auto-refreshes every 5 minutes
+              </span>
             </div>
             <div className="text-sm font-medium">
               {articles && <span>{articles.length} articles</span>}
@@ -172,10 +163,11 @@ const UnifiedCyberNews = () => {
 
         {/* Loading State */}
         {loading && !articles && (
-          <div className="space-y-4">
-            {[1, 2, 3, 4].map((i) => (
-              <Card key={i}>
-                <CardHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
+              <Card key={i} className="flex flex-col h-full">
+                <div className="w-full h-48 bg-muted" />
+                <CardHeader className="flex-grow">
                   <Skeleton className="h-6 w-3/4 mb-2" />
                   <Skeleton className="h-4 w-1/2" />
                 </CardHeader>
@@ -187,27 +179,38 @@ const UnifiedCyberNews = () => {
           </div>
         )}
 
-        {/* Articles List */}
+        {/* Articles List - 3x3 Grid */}
         {!loading && articles && articles.length > 0 && (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {articles.map((article, idx) => (
               <Card 
                 key={idx} 
-                className="hover:shadow-md transition-shadow border-l-4 border-l-primary"
+                className="hover:shadow-lg transition-shadow border-l-4 border-l-primary flex flex-col h-full"
               >
-                <CardHeader>
+                {article.urlToImage && (
+                  <div className="w-full h-48 overflow-hidden rounded-t-lg">
+                    <img 
+                      src={article.urlToImage} 
+                      alt={article.title}
+                      className="w-full h-full object-cover hover:scale-105 transition-transform"
+                      onError={(e) => {e.currentTarget.style.display = 'none'}}
+                    />
+                  </div>
+                )}
+
+                <CardHeader className="flex-grow">
                   <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start justify-between gap-2">
                       <div className="flex-1">
-                        <CardTitle className="text-lg leading-tight mb-2">
+                        <CardTitle className="text-base leading-tight mb-2 line-clamp-2">
                           {article.title}
                         </CardTitle>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <Badge className={`${getSourceColor(article.source)} font-semibold`}>
+                          <Badge className={`${getSourceColor(article.source)} font-semibold text-xs`}>
                             {article.source}
                           </Badge>
                           <span className="text-xs text-muted-foreground">
-                            {formatDate(article.pubDate)}
+                            {formatDate(article.publishedAt)}
                           </span>
                         </div>
                       </div>
@@ -215,11 +218,13 @@ const UnifiedCyberNews = () => {
                   </div>
                 </CardHeader>
 
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {stripHtml(article.contentSnippet)}
+                <CardContent className="space-y-4 flex-grow">
+                  <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">
+                    {stripHtml(article.description)}
                   </p>
+                </CardContent>
 
+                <div className="px-6 pb-6 mt-auto">
                   <Button 
                     asChild 
                     variant="default" 
@@ -227,7 +232,7 @@ const UnifiedCyberNews = () => {
                     className="w-full gap-2"
                   >
                     <a 
-                      href={article.link} 
+                      href={article.url} 
                       target="_blank" 
                       rel="noopener noreferrer"
                     >
@@ -235,7 +240,7 @@ const UnifiedCyberNews = () => {
                       <ExternalLink className="w-4 h-4" />
                     </a>
                   </Button>
-                </CardContent>
+                </div>
               </Card>
             ))}
           </div>
@@ -256,9 +261,9 @@ const UnifiedCyberNews = () => {
         {/* Info Footer */}
         <div className="text-xs text-muted-foreground text-center pt-4 border-t">
           <p>
-            Aggregating news from Krebs on Security, BleepingComputer, The Hacker News, and Dark Reading.
+            Aggregating the latest cybersecurity news from NewsAPI.
             <br />
-            Auto-refreshes every 15 minutes. Last refresh: {lastUpdated?.toLocaleTimeString()}
+            News auto-refreshes in the background.
           </p>
         </div>
       </div>

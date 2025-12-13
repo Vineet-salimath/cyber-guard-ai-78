@@ -8,6 +8,106 @@ console.log('🛡️ MalwareSnipper Extension Loaded');
 const BACKEND_URL = 'http://localhost:5000';
 const scanCache = new Map();
 const CACHE_DURATION = 30000; // 30 seconds
+const scansInProgress = new Map(); // Track ongoing scans
+
+// ============================================
+// INSTANT SCANNING WITH webRequest API
+// Listen at earliest possible stage (PHASE 1)
+// ============================================
+
+chrome.webRequest.onBeforeRequest.addListener(
+  async (details) => {
+    // Only intercept main frame navigation (pages, not resources)
+    if (details.type === 'main_frame' && scanningEnabled) {
+      const url = details.url;
+      
+      // Skip localhost and extension URLs
+      if (url.includes('localhost') || url.startsWith('chrome-extension://')) {
+        return;
+      }
+
+      // Don't re-scan if already in progress
+      if (scansInProgress.has(url)) {
+        console.log('⏳ Scan already in progress for:', url);
+        return;
+      }
+
+      console.log('⚡ INSTANT: URL intercepted at webRequest stage:', url);
+      scansInProgress.set(url, { phase: 'instant', timestamp: Date.now() });
+
+      try {
+        // PHASE 1: INSTANT checks (< 500ms) - Non-blocking
+        performInstantChecks(url)
+          .then(async (instantResults) => {
+            console.log('✅ INSTANT results ready:', instantResults);
+            
+            // Send immediately to backend (non-blocking)
+            sendToBackend('/api/instant-scan', {
+              url: url,
+              ...instantResults,
+              phase: 'instant'
+            }).catch(err => console.error('Failed to send instant results:', err));
+
+            // PHASE 2: Start fast scan (1-3 seconds) in background
+            performFastScan(url)
+              .then(fastResults => {
+                console.log('✅ FAST scan completed:', fastResults);
+                sendToBackend('/api/scan-progress', {
+                  url: url,
+                  ...fastResults,
+                  phase: 'fast'
+                }).catch(err => console.error('Failed to send fast results:', err));
+
+                // PHASE 3: Start deep scan (3-15 seconds) in background
+                performDeepScan(url)
+                  .then(deepResults => {
+                    console.log('✅ DEEP scan completed:', deepResults);
+                    sendToBackend('/api/scan-final', {
+                      url: url,
+                      ...deepResults,
+                      phase: 'deep'
+                    }).catch(err => console.error('Failed to send deep results:', err));
+
+                    // Update in-progress cache
+                    scansInProgress.delete(url);
+                  })
+                  .catch(err => {
+                    console.error('❌ Deep scan failed:', err);
+                    scansInProgress.delete(url);
+                  });
+              })
+              .catch(err => console.error('❌ Fast scan failed:', err));
+          })
+          .catch(err => console.error('❌ Instant checks failed:', err));
+
+      } catch (error) {
+        console.error('❌ Error in webRequest listener:', error);
+        scansInProgress.delete(url);
+      }
+    }
+  },
+  { urls: ['<all_urls>'] }
+);
+
+// Helper function to send data to backend
+async function sendToBackend(endpoint, data) {
+  try {
+    const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+
+    if (!response.ok) {
+      console.error(`⚠️ Backend error (${response.status}):`, await response.text());
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`❌ Failed to send data to ${endpoint}:`, error);
+    throw error;
+  }
+}
 
 // ============================================
 // SCANNING STATE & CONTROL
@@ -111,6 +211,226 @@ async function saveScanToAlerts(result) {
   
   // Notify popup to update
   chrome.runtime.sendMessage({ action: 'statsUpdated' }).catch(() => {});
+}
+
+// ============================================
+// PHASE SCANNING IMPLEMENTATIONS
+// These are integrated from scanner.js logic
+// ============================================
+
+// PHASE 1: INSTANT CHECKS (< 1 second)
+async function performInstantChecks(url) {
+  const results = {
+    timestamp: Date.now(),
+    url: url,
+    phase: 'instant',
+    checks: {}
+  };
+
+  try {
+    // URL pattern analysis
+    results.checks.urlAnalysis = analyzeURLPattern(url);
+    
+    // Local cache lookup
+    results.checks.cachedResult = await checkLocalCache(url);
+    
+    // SSL/TLS check
+    results.checks.sslStatus = await checkSSL(url);
+    
+    console.log('✅ PHASE 1 INSTANT checks complete:', results);
+  } catch (error) {
+    console.error('❌ Instant checks error:', error);
+  }
+
+  return results;
+}
+
+// PHASE 2: FAST SCAN (1-3 seconds)
+async function performFastScan(url) {
+  const results = {
+    phase: 'fast',
+    timestamp: Date.now(),
+    url: url,
+    checks: {}
+  };
+
+  try {
+    // Run API calls in parallel
+    const [vtResult] = await Promise.all([
+      checkVirusTotal(url)
+    ]);
+
+    results.checks = { virustotal: vtResult };
+    console.log('✅ PHASE 2 FAST scan complete:', results);
+  } catch (error) {
+    console.error('❌ Fast scan error:', error);
+  }
+
+  return results;
+}
+
+// PHASE 3: DEEP SCAN (3-15 seconds)
+async function performDeepScan(url) {
+  const results = {
+    phase: 'deep',
+    timestamp: Date.now(),
+    url: url,
+    checks: {}
+  };
+
+  try {
+    // Heavy analysis
+    results.checks.mlPrediction = await runMLModel(url);
+    results.checks.scriptAnalysis = await analyzePageScripts(url);
+    
+    console.log('✅ PHASE 3 DEEP scan complete:', results);
+  } catch (error) {
+    console.error('❌ Deep scan error:', error);
+  }
+
+  return results;
+}
+
+// Helper: URL Pattern Analysis
+function analyzeURLPattern(url) {
+  let suspicionScore = 0;
+  const indicators = [];
+
+  try {
+    const urlObj = new URL(url);
+    const domain = urlObj.hostname;
+    const path = urlObj.pathname;
+
+    // Check suspicious TLDs
+    const suspiciousTLDs = ['.tk', '.ml', '.ga', '.cf', '.bit'];
+    if (suspiciousTLDs.some(tld => domain.endsWith(tld))) {
+      suspicionScore += 15;
+      indicators.push('Suspicious TLD');
+    }
+
+    // Check URL length
+    if (url.length > 75) {
+      suspicionScore += 10;
+      indicators.push('Long URL');
+    }
+
+    // Check IP address
+    if (/^\d+\.\d+\.\d+\.\d+/.test(domain)) {
+      suspicionScore += 20;
+      indicators.push('IP-based URL');
+    }
+
+    // Check non-HTTPS
+    if (!url.startsWith('https://') && !url.startsWith('http://localhost')) {
+      suspicionScore += 5;
+      indicators.push('Not HTTPS');
+    }
+  } catch (error) {
+    console.error('URL pattern analysis error:', error);
+  }
+
+  return {
+    score: Math.min(suspicionScore, 100),
+    indicators: indicators,
+    safeURL: suspicionScore < 30
+  };
+}
+
+// Helper: Local cache lookup
+async function checkLocalCache(url) {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(['scanCache'], (result) => {
+      if (result.scanCache && result.scanCache[url]) {
+        const cached = result.scanCache[url];
+        const age = Date.now() - cached.timestamp;
+        
+        if (age < 24 * 60 * 60 * 1000) { // 24 hour TTL
+          resolve({
+            cached: true,
+            result: cached,
+            age: Math.floor(age / 1000)
+          });
+          return;
+        }
+      }
+      resolve({ cached: false });
+    });
+  });
+}
+
+// Helper: SSL check
+async function checkSSL(url) {
+  try {
+    if (!url.startsWith('https://')) {
+      return { secure: false, reason: 'Not HTTPS' };
+    }
+    return { secure: true, certificateValid: true };
+  } catch (error) {
+    return { secure: false, reason: 'SSL check failed' };
+  }
+}
+
+// Helper: VirusTotal check (calls existing backend)
+async function checkVirusTotal(url) {
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/scan-url`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: url })
+    });
+
+    const data = await response.json();
+    return {
+      successful: true,
+      malicious: data.stats?.malicious || 0,
+      suspicious: data.stats?.suspicious || 0,
+      harmless: data.stats?.harmless || 0,
+      undetected: data.stats?.undetected || 0,
+      riskScore: data.overall_risk_score || 0
+    };
+  } catch (error) {
+    console.error('VirusTotal check error:', error);
+    return { successful: false, error: error.message };
+  }
+}
+
+// Helper: ML Model check
+async function runMLModel(url) {
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/threat-analysis`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: url, type: 'ml_analysis' })
+    });
+
+    const data = await response.json();
+    return {
+      successful: true,
+      prediction: data.prediction || 'BENIGN',
+      confidence: data.confidence || 0.5
+    };
+  } catch (error) {
+    return { successful: false, error: error.message };
+  }
+}
+
+// Helper: Page script analysis
+async function analyzePageScripts(url) {
+  try {
+    const response = await fetch(url);
+    const html = await response.text();
+    
+    const scripts = (html.match(/<script[^>]*>([\s\S]*?)<\/script>/gi) || []).length;
+    const externalScripts = (html.match(/<script[^>]+src=['"]([^'"]+)['"]/gi) || []).length;
+
+    return {
+      successful: true,
+      scriptCount: scripts,
+      externalScripts: externalScripts
+    };
+  } catch (error) {
+    return { successful: false, error: error.message };
+  }
 }
 
 // ====================

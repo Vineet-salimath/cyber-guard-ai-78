@@ -79,6 +79,7 @@ const RealTimeDashboard = () => {
   const [scanning, setScanning] = useState(false);
   const [selectedScan, setSelectedScan] = useState<ScanResult | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [scanProgress, setScanProgress] = useState<{ url: string; progress: number; phase: string } | null>(null);
   
   const socketRef = useRef<any>(null);
   const scanFeedRef = useRef<HTMLDivElement>(null);
@@ -189,6 +190,55 @@ const RealTimeDashboard = () => {
       setScanning(true);
     });
 
+    // 🔥 NEW: INSTANT SCAN RESULTS (PHASE 1 - 33% progress)
+    socket.on('instant_results', (data: any) => {
+      console.log('⚡ INSTANT RESULTS RECEIVED (Phase 1):', data.url);
+      console.log('   Progress: 33% - URL Analysis & Cache Lookup');
+      
+      setScanProgress({
+        url: data.url,
+        progress: 33,
+        phase: 'instant'
+      });
+      setScanning(true);
+    });
+
+    // 🔥 NEW: FAST SCAN RESULTS (PHASE 2 - 66% progress)
+    socket.on('scan_progress', (data: any) => {
+      console.log('📊 FAST SCAN RESULTS RECEIVED (Phase 2):', data.url);
+      console.log('   Progress: 66% - VirusTotal & Threat Intelligence');
+      
+      const vtResult = data.checks?.virustotal;
+      if (vtResult?.successful) {
+        console.log(`   VirusTotal: ${vtResult.malicious}/${vtResult.total} detected as malicious`);
+      }
+      
+      setScanProgress({
+        url: data.url,
+        progress: 66,
+        phase: 'fast'
+      });
+    });
+
+    // 🔥 NEW: COMPLETE SCAN RESULTS (PHASE 3 - 100% progress)
+    socket.on('scan_complete', (data: any) => {
+      console.log('🎯 SCAN COMPLETE (Phase 3):', data.url);
+      console.log('   Progress: 100% - Final Classification Ready');
+      console.log(`   Classification: ${data.classification}`);
+      console.log(`   Risk Score: ${data.riskScore}`);
+      
+      setScanProgress({
+        url: data.url,
+        progress: 100,
+        phase: 'complete'
+      });
+      
+      // Brief delay before clearing progress (for visual feedback)
+      setTimeout(() => {
+        setScanProgress(null);
+      }, 2000);
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -270,6 +320,47 @@ const RealTimeDashboard = () => {
             <span className="font-semibold">{connected ? 'Live' : 'Disconnected'}</span>
           </Badge>
         </div>
+
+        {/* 🔥 PROGRESSIVE SCAN INDICATOR - REAL-TIME PROGRESS */}
+        {scanProgress && (
+          <Card className="bg-gradient-to-r from-blue-50 to-cyan-50 border-blue-300">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold text-blue-900">
+                  {scanProgress.phase === 'instant' && '⚡ Instant Analysis...'}
+                  {scanProgress.phase === 'fast' && '📊 Fast Scan Running...'}
+                  {scanProgress.phase === 'complete' && '✅ Scan Complete!'}
+                </CardTitle>
+                <div className="text-2xl font-bold text-blue-600">{scanProgress.progress}%</div>
+              </div>
+              <p className="text-xs text-blue-600 mt-1">{scanProgress.url}</p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {/* Progress bar */}
+                <div className="w-full bg-blue-200 rounded-full h-3 overflow-hidden">
+                  <div
+                    className="bg-gradient-to-r from-blue-500 to-cyan-500 h-full transition-all duration-500"
+                    style={{ width: `${scanProgress.progress}%` }}
+                  />
+                </div>
+                
+                {/* Phase indicators */}
+                <div className="flex gap-3 text-xs text-blue-700">
+                  <div className={`flex items-center gap-1 ${scanProgress.progress >= 33 ? 'text-blue-900 font-semibold' : 'text-blue-400'}`}>
+                    ⚡ Instant
+                  </div>
+                  <div className={`flex items-center gap-1 ${scanProgress.progress >= 66 ? 'text-blue-900 font-semibold' : 'text-blue-400'}`}>
+                    📊 Fast
+                  </div>
+                  <div className={`flex items-center gap-1 ${scanProgress.progress >= 100 ? 'text-blue-900 font-semibold' : 'text-blue-400'}`}>
+                    🎯 Deep
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Stats Cards - REAL DATA ONLY */}
         <div className="grid gap-4 md:grid-cols-4">
