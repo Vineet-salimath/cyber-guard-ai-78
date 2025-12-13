@@ -9,6 +9,13 @@ const BACKEND_URL = 'http://localhost:5000';
 const scanCache = new Map();
 const CACHE_DURATION = 30000; // 30 seconds
 
+// ============================================
+// INITIALIZE MANAGERS FOR REAL-TIME UPDATES
+// ============================================
+// These will be loaded from their respective files
+let SymbolManager = null;
+let AlertManager = null;
+
 // Stats tracking
 let stats = {
   monitored: 0,
@@ -224,6 +231,45 @@ async function scanURL(tabId, url) {
         }
         await saveStats();
         
+        // ============================================
+        // REAL-TIME SYMBOL UPDATE
+        // ============================================
+        if (SymbolManager) {
+          // Determine symbol based on analysis
+          const symbolKey = SymbolManager.getSymbolByRiskScore(riskScore);
+          
+          // Update badge immediately
+          await SymbolManager.updateBadge(symbolKey, tabId);
+          
+          // Record symbol change for trend analysis
+          SymbolManager.recordSymbolChange(symbolKey, riskScore, url);
+          
+          // Broadcast symbol update to popup
+          await SymbolManager.broadcastSymbolUpdate(symbolKey, tabId, {
+            riskScore: riskScore,
+            classification: classification,
+            url: url
+          });
+          
+          console.log(`🔄 Symbol updated to: ${symbolKey}`);
+        }
+        
+        // ============================================
+        // REAL-TIME ALERT UPDATE
+        // ============================================
+        if (AlertManager) {
+          // Create and add alert
+          await AlertManager.addAlert({
+            url: url,
+            classification: classification,
+            risk_score: riskScore,
+            timestamp: result.timestamp || new Date().toISOString(),
+            details: result
+          });
+          
+          console.log(`🚨 Alert created and broadcasted`);
+        }
+        
         // 🔥 Send real-time scan result to popup
         chrome.runtime.sendMessage({
           type: 'SCAN_RESULT',
@@ -247,7 +293,7 @@ async function scanURL(tabId, url) {
           result: result
         });
 
-        // Update badge based on result
+        // Update badge based on result (legacy support)
         const badge = {
           'BENIGN': { text: '✓', color: '#10B981' },
           'SUSPICIOUS': { text: '⚠', color: '#F59E0B' },
@@ -402,4 +448,35 @@ setInterval(() => {
   }
 }, 60000); // Every minute
 
-console.log('✅ MalwareSnipper Ready - Real-time scanning enabled');
+// ============================================
+// INITIALIZE REAL-TIME MANAGERS
+// ============================================
+// These scripts are injected by the manifest
+// They will be available as global objects once loaded
+
+// Function to initialize managers when they're loaded
+function initializeManagers() {
+  if (typeof SymbolManager !== 'undefined') {
+    console.log('✅ SymbolManager initialized');
+  }
+  if (typeof AlertManager !== 'undefined') {
+    console.log('✅ AlertManager initialized');
+    // Start alert stream for continuous updates
+    AlertManager.loadAlertsFromStorage().then(() => {
+      AlertManager.startAlertStream((update) => {
+        // Broadcast alert stream to popup
+        chrome.runtime.sendMessage({
+          type: 'ALERT_STREAM',
+          data: update
+        }).catch(() => {
+          // Popup might not be open
+        });
+      }, 2000); // Update every 2 seconds
+    });
+  }
+}
+
+// Attempt to initialize managers
+setTimeout(initializeManagers, 1000);
+
+console.log('✅ MalwareSnipper Ready - Real-time scanning enabled with Symbol & Alert Managers');
