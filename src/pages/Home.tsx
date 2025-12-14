@@ -51,14 +51,12 @@ const Home = () => {
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-50 bg-background/80 backdrop-blur-lg border-b">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 font-semibold text-xl">
-            <Shield className="w-6 h-6 text-primary" />
-            <span>MalwareSnipper</span>
+          <div className="flex items-center gap-3">
+            <MalwareSnipperLogo variant="icon" animated={true} className="w-8 h-8" />
+            <span className="font-semibold text-xl">MalwareSnipper</span>
           </div>
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate("/dashboard")}>
-              Dashboard
-            </Button>
+            
             <Button onClick={() => navigate("/dashboard")}>Get Started</Button>
           </div>
         </div>
@@ -73,16 +71,7 @@ const Home = () => {
             transition={{ duration: 0.6 }}
             className="text-center space-y-8"
           >
-            {/* Badge */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.1 }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium"
-            >
-              <Sparkles className="w-4 h-4" />
-              AI-Powered Threat Intelligence
-            </motion.div>
+           
 
             {/* Headline */}
             <div className="space-y-4">
@@ -107,9 +96,7 @@ const Home = () => {
                 Launch Dashboard
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
-              <Button size="lg" variant="outline" className="text-base h-12 px-8">
-                View Demo
-              </Button>
+             
             </motion.div>
 
             {/* Stats */}
