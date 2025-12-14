@@ -181,10 +181,10 @@ const UnifiedCyberNews = () => {
             <div>
               <h1 className="text-4xl font-bold tracking-tight flex items-center gap-2">
                 <Rss className="w-10 h-10 text-primary" />
-                Cybersecurity Blogs
+                Security News & Threat Intelligence
               </h1>
               <p className="text-muted-foreground mt-2 text-lg">
-                Latest news and insights from the cybersecurity community
+                Latest malware threats and security vulnerabilities from trusted sources
               </p>
             </div>
             <Button 
