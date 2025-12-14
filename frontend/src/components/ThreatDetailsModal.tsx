@@ -2,7 +2,6 @@
 import { useState, useEffect } from 'react';
 import { X, Shield, AlertTriangle, XCircle, Activity, FileText, Link as LinkIcon, Wrench } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import axios from 'axios';
 
 interface CVEData {
   id: string;
@@ -67,12 +66,19 @@ const ThreatDetailsModal = ({ isOpen, onClose, threatData }: ThreatDetailsModalP
     
     setLoadingCVE(true);
     try {
-      const response = await axios.post('http://localhost:5000/get-cve-details', {
-        threat_names: threatData.threat_names,
-        cve_ids: []
+      const response = await fetch('http://localhost:5000/get-cve-details', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          threat_names: threatData.threat_names,
+          cve_ids: []
+        })
       });
       
-      setCveData(response.data.cves || []);
+      const data = await response.json();
+      setCveData(data.cves || []);
     } catch (error) {
       console.error('Error fetching CVE data:', error);
       setCveData([]);
