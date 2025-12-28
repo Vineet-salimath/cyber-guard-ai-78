@@ -18,10 +18,12 @@ pyOpenSSL==23.3.0              # SSL/TLS certificate analysis
 virustotal-python==1.0.0       # VirusTotal integration (optional)
 shodan==1.30.0                 # Shodan API (optional)
 
-# ML dependencies (existing)
-scikit-learn==1.3.2            # ML models
-pandas==2.1.3                  # Data processing
-numpy==1.26.2                  # Numerical operations
+# Advanced Security Scanning (Production-ready modules)
+beautifulsoup4==4.12.2         # HTML/XML parsing for metadata extraction
+urllib3==2.1.0                 # HTTP client with advanced URL handling
+requests-html==0.10.0          # HTML parsing for content analysis
+# Note: yara-python, lxml, numpy, pandas, scikit-learn require C compiler
+# Install them separately using pre-built wheels or with Visual C++ tools
 
 # Future ML infrastructure (for Option C scaffold)
 # onnxruntime==1.16.3          # ONNX model inference (uncomment when ready)

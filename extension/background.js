@@ -11,8 +11,7 @@ const CACHE_DURATION = 30000; // 30 seconds
 const scansInProgress = new Map(); // Track ongoing scans
 
 // ============================================
-// INSTANT SCANNING WITH webRequest API
-// Listen at earliest possible stage (PHASE 1)
+// SIMPLE SCANNING - ONE SCAN PER URL
 // ============================================
 
 chrome.webRequest.onBeforeRequest.addListener(
@@ -20,9 +19,14 @@ chrome.webRequest.onBeforeRequest.addListener(
     // Only intercept main frame navigation (pages, not resources)
     if (details.type === 'main_frame' && scanningEnabled) {
       const url = details.url;
+      const tabId = details.tabId;
       
-      // Skip localhost and extension URLs
-      if (url.includes('localhost') || url.startsWith('chrome-extension://')) {
+      // Skip system URLs and extension URLs
+      if (url.startsWith('chrome://') || 
+          url.startsWith('chrome-extension://') ||
+          url.startsWith('edge://') ||
+          url.startsWith('about:') ||
+          url.startsWith('data:')) {
         return;
       }
 
@@ -32,56 +36,57 @@ chrome.webRequest.onBeforeRequest.addListener(
         return;
       }
 
-      console.log('⚡ INSTANT: URL intercepted at webRequest stage:', url);
-      scansInProgress.set(url, { phase: 'instant', timestamp: Date.now() });
+      console.log('🔍 SCAN: URL intercepted:', url, 'TabID:', tabId);
+      scansInProgress.set(url, { timestamp: Date.now(), tabId: tabId });
 
       try {
-        // PHASE 1: INSTANT checks (< 500ms) - Non-blocking
-        performInstantChecks(url)
-          .then(async (instantResults) => {
-            console.log('✅ INSTANT results ready:', instantResults);
+        // Send to backend for scanning
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        fetch(`${BACKEND_URL}/api/scan-realtime`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: url }),
+          signal: controller.signal
+        })
+          .then(async response => {
+            clearTimeout(timeoutId);
+            if (!response.ok) throw new Error(`Backend error: ${response.status}`);
             
-            // Send immediately to backend (non-blocking)
-            sendToBackend('/api/instant-scan', {
+            const result = await response.json();
+            const riskScore = result.overall_risk || result.risk_score || 0;
+            const classification = result.final_classification || result.classification || 'BENIGN';
+            
+            console.log('✅ Scan result:', classification, 'Risk Score:', riskScore);
+            
+            // Convert to notification status
+            let notificationStatus = 'SAFE';
+            if (classification === 'MALICIOUS' || classification === 'RANSOMWARE') {
+              notificationStatus = 'MALICIOUS';
+            } else if (classification === 'SUSPICIOUS' || classification === 'PHISHING') {
+              notificationStatus = 'SUSPICIOUS';
+            }
+            
+            // Notify content script using tabId
+            console.log('📢 Sending notification to Tab:', tabId);
+            notifyContentScript(tabId, {
               url: url,
-              ...instantResults,
-              phase: 'instant'
-            }).catch(err => console.error('Failed to send instant results:', err));
-
-            // PHASE 2: Start fast scan (1-3 seconds) in background
-            performFastScan(url)
-              .then(fastResults => {
-                console.log('✅ FAST scan completed:', fastResults);
-                sendToBackend('/api/scan-progress', {
-                  url: url,
-                  ...fastResults,
-                  phase: 'fast'
-                }).catch(err => console.error('Failed to send fast results:', err));
-
-                // PHASE 3: Start deep scan (3-15 seconds) in background
-                performDeepScan(url)
-                  .then(deepResults => {
-                    console.log('✅ DEEP scan completed:', deepResults);
-                    sendToBackend('/api/scan-final', {
-                      url: url,
-                      ...deepResults,
-                      phase: 'deep'
-                    }).catch(err => console.error('Failed to send deep results:', err));
-
-                    // Update in-progress cache
-                    scansInProgress.delete(url);
-                  })
-                  .catch(err => {
-                    console.error('❌ Deep scan failed:', err);
-                    scansInProgress.delete(url);
-                  });
-              })
-              .catch(err => console.error('❌ Fast scan failed:', err));
+              status: notificationStatus,
+              riskScore: riskScore,
+              threats: result.detected_threats || []
+            });
+            
+            scansInProgress.delete(url);
           })
-          .catch(err => console.error('❌ Instant checks failed:', err));
+          .catch(error => {
+            clearTimeout(timeoutId);
+            console.error('❌ Scan failed:', error);
+            scansInProgress.delete(url);
+          });
 
       } catch (error) {
-        console.error('❌ Error in webRequest listener:', error);
+        console.error('❌ Error in scan:', error);
         scansInProgress.delete(url);
       }
     }
@@ -106,6 +111,30 @@ async function sendToBackend(endpoint, data) {
   } catch (error) {
     console.error(`❌ Failed to send data to ${endpoint}:`, error);
     throw error;
+  }
+}
+
+// Helper function to notify content script about scan result
+function notifyContentScript(tabId, scanResult) {
+  try {
+    console.log('🔔 notifyContentScript called with tabId:', tabId);
+    chrome.tabs.sendMessage(tabId, {
+      type: 'SCAN_COMPLETE',
+      data: {
+        url: scanResult.url,
+        status: scanResult.status,
+        riskScore: scanResult.riskScore,
+        threats: scanResult.threats || []
+      }
+    }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.log('⚠️ Content script message error:', chrome.runtime.lastError);
+      } else {
+        console.log('✅ Content script received message, response:', response);
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error notifying content script:', error);
   }
 }
 
@@ -597,6 +626,24 @@ async function scanURL(tabId, url) {
         const riskScore = result.overall_risk || result.risk_score || 0;
         const classification = result.final_classification || result.classification || 'BENIGN';
         
+        // Convert classification to notification status
+        let notificationStatus = 'SAFE';
+        if (classification === 'MALICIOUS' || classification === 'RANSOMWARE') {
+          notificationStatus = 'MALICIOUS';
+        } else if (classification === 'SUSPICIOUS' || classification === 'PHISHING' || classification === 'OBFUSCATED_JS') {
+          notificationStatus = 'SUSPICIOUS';
+        } else if (classification === 'THREAT') {
+          notificationStatus = 'THREAT';
+        }
+        
+        // Notify content script of scan result
+        notifyContentScript(tabId, {
+          url: url,
+          status: notificationStatus,
+          risk_score: riskScore,
+          detected_threats: result.detected_threats || []
+        });
+        
         // Update stats
         stats.monitored++;
         if (classification === 'MALICIOUS' || classification === 'SUSPICIOUS') {
@@ -630,21 +677,8 @@ async function scanURL(tabId, url) {
           console.log(`🔄 Symbol updated to: ${symbolKey}`);
         }
         
-        // ============================================
-        // REAL-TIME ALERT UPDATE
-        // ============================================
-        if (AlertManager) {
-          // Create and add alert
-          await AlertManager.addAlert({
-            url: url,
-            classification: classification,
-            risk_score: riskScore,
-            timestamp: result.timestamp || new Date().toISOString(),
-            details: result
-          });
-          
-          console.log(`🚨 Alert created and broadcasted`);
-        }
+        // ✅ Scan complete and notified
+        console.log('✅ Scan completed and notified to content script');
         
         // 🔥 Send real-time scan result to popup
         chrome.runtime.sendMessage({
@@ -878,24 +912,11 @@ setInterval(() => {
 
 // Function to initialize managers when they're loaded
 function initializeManagers() {
-  if (typeof SymbolManager !== 'undefined') {
+  if (typeof SymbolManager !== 'undefined' && SymbolManager !== null) {
     console.log('✅ SymbolManager initialized');
   }
-  if (typeof AlertManager !== 'undefined') {
-    console.log('✅ AlertManager initialized');
-    // Start alert stream for continuous updates
-    AlertManager.loadAlertsFromStorage().then(() => {
-      AlertManager.startAlertStream((update) => {
-        // Broadcast alert stream to popup
-        chrome.runtime.sendMessage({
-          type: 'ALERT_STREAM',
-          data: update
-        }).catch(() => {
-          // Popup might not be open
-        });
-      }, 2000); // Update every 2 seconds
-    });
-  }
+  // AlertManager initialization removed - not needed for basic popup functionality
+  console.log('✅ Managers initialization complete');
 }
 
 // Attempt to initialize managers

@@ -399,13 +399,72 @@ if (document.readyState === 'loading') {
     setTimeout(performFullPageAnalysis, ANALYSIS_DELAY);
 }
 
-// Listen for manual scan requests
+// ═══════════════════════════════════════════════════════════════════════════
+// SCAN RESULT HANDLER - Process results from background script
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Listen for scan results from background script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'scan_page') {
-        console.log('🔄 [MANUAL] Manual scan requested');
-        performFullPageAnalysis();
-        sendResponse({ success: true });
-    }
+  console.log('📨 [CONTENT] Message received:', message.type);
+  if (message.type === 'SCAN_COMPLETE') {
+    console.log('✅ [CONTENT] Handling scan result:', message.data);
+    handleScanResult(message.data);
+    sendResponse({ success: true });
+  } else if (message.type === 'scan_page') {
+    console.log('🔄 [MANUAL] Manual scan requested');
+    performFullPageAnalysis();
+    sendResponse({ success: true });
+  }
 });
+
+function handleScanResult(scanData) {
+  const { url, status, riskScore, threats } = scanData;
+  console.log('🔍 [SCAN RESULT] Status:', status, 'RiskScore:', riskScore, 'URL:', url);
+  
+  if (status === 'SAFE') {
+    // Silent - no popup for safe websites
+    console.log('✅ SAFE URL - No popup shown');
+    return;
+  }
+  else if (status === 'SUSPICIOUS') {
+    // Show suspicious warning and ASK USER for choice
+    const userChoice = confirm(`⚠️ MalwareSnipper says:\n\nThe tested URL is SUSPICIOUS!\n\nURL: ${url}\nRisk Score: ${riskScore}/100\n\nThis website may be risky.\n\n⚠️ Click OK to CONTINUE ANYWAY\n⚠️ Click CANCEL to GO BACK TO GOOGLE`);
+    
+    if (userChoice) {
+      // User chose to continue anyway
+      logNotification(url, status, riskScore, 'SUSPICIOUS_USER_CONTINUED');
+      // Stay on page - do nothing
+    } else {
+      // User chose to go back
+      logNotification(url, status, riskScore, 'SUSPICIOUS_USER_REDIRECTED');
+      window.location.href = 'https://google.com';
+    }
+  } 
+  else if (status === 'THREAT' || status === 'MALICIOUS') {
+    // Show malicious/threat alert and AUTO-REDIRECT (no choice)
+    const threatList = threats && threats.length > 0 ? threats.join(', ') : 'Multiple threats detected';
+    
+    alert(`🛑 MalwareSnipper says:\n\nThe tested URL is MALICIOUS!\n\nURL: ${url}\nRisk Score: ${riskScore}/100\nThreats Detected: ${threatList}\n\nThis website is dangerous and has been blocked. Redirecting to Google immediately...`);
+    
+    logNotification(url, status, riskScore, 'MALICIOUS_BLOCKED_REDIRECTED');
+    
+    // Auto-redirect to Google (no user choice)
+    window.location.href = 'https://google.com';
+  }
+}
+
+function logNotification(url, status, riskScore, action) {
+  fetch('http://localhost:5000/api/log-notification', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      url: url,
+      status: status,
+      risk_score: riskScore,
+      user_action: action,
+      timestamp: new Date().toISOString()
+    })
+  }).catch(err => console.error('Failed to log:', err));
+}
 
 console.log('✅ [CONTENT SCRIPT] Ready for analysis');

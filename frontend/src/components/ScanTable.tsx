@@ -9,6 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import DownloadDropdown from "@/components/DownloadDropdown";
 
 interface Scan {
   id: string;
@@ -16,6 +17,26 @@ interface Scan {
   timestamp: string;
   status: "safe" | "suspicious" | "malicious";
   threatScore: number;
+  classification?: string;
+  method?: string;
+  indicators?: string[];
+  analysis?: {
+    ml_prediction?: string;
+    ml_confidence?: number;
+    ml_risk_score?: number;
+    virustotal_threat_level?: string;
+    virustotal_risk_score?: number;
+    javascript_risk_score?: number;
+    pattern_risk_score?: number;
+    page_risk_score?: number;
+  };
+  details?: {
+    has_obfuscated_js?: boolean;
+    has_suspicious_patterns?: boolean;
+    has_password_fields?: boolean;
+    external_scripts_count?: number;
+    iframe_count?: number;
+  };
 }
 
 interface ScanTableProps {
@@ -100,15 +121,18 @@ const ScanTable = ({ scans, onViewDetails }: ScanTableProps) => {
                   {scan.timestamp}
                 </TableCell>
                 <TableCell>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onViewDetails(scan)}
-                    className="gap-1 h-8"
-                  >
-                    <span className="text-xs">Details</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onViewDetails(scan)}
+                      className="gap-1 h-8"
+                    >
+                      <span className="text-xs">Details</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </Button>
+                    <DownloadDropdown scan={scan} />
+                  </div>
                 </TableCell>
               </TableRow>
             ))}

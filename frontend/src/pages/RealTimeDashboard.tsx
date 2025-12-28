@@ -7,6 +7,7 @@ import { useState, useEffect, useRef } from "react";
 import { Shield, AlertTriangle, Activity, ExternalLink, Bug, Info } from "lucide-react";
 import io from 'socket.io-client';
 import DashboardLayout from "@/components/DashboardLayout";
+import DownloadDropdown from "@/components/DownloadDropdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -658,15 +659,18 @@ const RealTimeDashboard = () => {
                             </Badge>
                           </td>
                           <td className="px-4 py-3">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => openDetails(scan)}
-                              className="text-xs"
-                            >
-                              <Info className="h-3 w-3 mr-1" />
-                              Details
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openDetails(scan)}
+                                className="text-xs"
+                              >
+                                <Info className="h-3 w-3 mr-1" />
+                                Details
+                              </Button>
+                              <DownloadDropdown scan={scan} />
+                            </div>
                           </td>
                         </tr>
                       ))}
